@@ -14,7 +14,7 @@ using System.IO;
 using System.Drawing;
 namespace EMGUCV
 {
-    class DBConn
+    public class DBConn
     {
         private MySqlConnection connection;
         private string server;

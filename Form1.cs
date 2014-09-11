@@ -34,35 +34,19 @@ namespace EMGUCV
         List<Image<Gray, byte>> allimage;
         List<string> allname;
         int count = 0;
+        Classifier_Train Eigen_Recog = new Classifier_Train();
+        MCvTermCriteria termCrit;
+        EigenObjectRecognizer recognizer;
         public Form1()
         {
             InitializeComponent();
             face = new HaarCascade("haarcascade_frontalface_default.xml");
             mydb = new DBConn();
-            LoadTrainingFace();
+            
             
         }
 
-        private void LoadTrainingFace()
-        {
-            allname = mydb.getLabelList();
-            foreach(string name in allname){
-                listView1.Items.Add(name);
-            }
-
-            allimage = mydb.getTrainedImageList();
-            /*foreach (Image<Gray,byte> image in allimage)
-            {
-                
-                
-            }*/
-        }
-        private void button5_Click(object sender, EventArgs e)
-        {
-            listView1.Items.Add(allimage[count].Width + " " + allimage[count].Height);
-            imageBox8.Image = allimage[count];
-            count++;
-        }
+        
         
         private void button1_Click(object sender, EventArgs e)
         {
@@ -88,11 +72,11 @@ namespace EMGUCV
                 string matchedname;
                 Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
                 Image<Hsv, byte> hsv = ImageFrame.Convert<Hsv, byte>();
-                Image<Gray, byte>[] channels = hsv.Split();
-                CvInvoke.cvInRangeS(channels[1], new Gray(255).MCvScalar, new Gray(255).MCvScalar, channels[1]);
-                Image<Gray, byte> greyROIimage = (channels[1].And(channels[2]));
+                
+                
+                
                 stopWatch.Start();
-                var faces = face.Detect(greyimage,1.3,6,HAAR_DETECTION_TYPE.DO_CANNY_PRUNING,new Size(100,100),new Size(300,300));
+                var faces = face.Detect(greyimage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(100,100),new Size(300,300));
                 //var faces = greyimage.DetectHaarCascade(face, 1.3, 6, HAAR_DETECTION_TYPE.DO_CANNY_PRUNING, new Size(100, 100))[0];
                 Parallel.ForEach(faces, facecount =>
                 {
@@ -130,7 +114,7 @@ namespace EMGUCV
                 
                 stopWatch.Reset();
                 imageBox1.Image = ImageFrame;//line 2
-                imageBox7.Image = greyROIimage.Resize(218, 165, INTER.CV_INTER_LINEAR);
+                
             }
             
             
@@ -138,16 +122,9 @@ namespace EMGUCV
         private string findface(Image<Gray,byte> result)
         {
             string name;
-            MCvTermCriteria termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
+            
 
-            //Eigen face recognizer
-            EigenObjectRecognizer recognizer = new EigenObjectRecognizer(
-               allimage.ToArray(),
-               allname.ToArray(),
-               4000,
-               ref termCrit);
-
-            name = recognizer.Recognize(result);
+            name = Eigen_Recog.Recognise(result);
             return name;
         }
         private void TrainFrame()
@@ -164,7 +141,7 @@ namespace EMGUCV
                     Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
 
 
-                    var faces = greyimage.DetectHaarCascade(face, 1.3, 6, HAAR_DETECTION_TYPE.DO_CANNY_PRUNING, new Size(100, 100))[0];
+                    var faces = face.Detect(greyimage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(100, 100), new Size(300, 300));
                     if (faces.Length > 0)
                     {
                         foreach (var facecount in faces)
