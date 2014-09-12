@@ -51,8 +51,8 @@
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.listView1 = new System.Windows.Forms.ListView();
             this.textBox3 = new System.Windows.Forms.TextBox();
-            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.button5 = new System.Windows.Forms.Button();
+            this.textBox4 = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox3)).BeginInit();
@@ -231,7 +231,7 @@
             // 
             this.textBox2.Location = new System.Drawing.Point(569, 464);
             this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(318, 20);
+            this.textBox2.Size = new System.Drawing.Size(107, 20);
             this.textBox2.TabIndex = 18;
             // 
             // listView1
@@ -249,12 +249,6 @@
             this.textBox3.Size = new System.Drawing.Size(100, 20);
             this.textBox3.TabIndex = 20;
             // 
-            // imageList1
-            // 
-            this.imageList1.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
-            this.imageList1.ImageSize = new System.Drawing.Size(200, 200);
-            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
-            // 
             // button5
             // 
             this.button5.Location = new System.Drawing.Point(1223, 301);
@@ -263,13 +257,20 @@
             this.button5.TabIndex = 21;
             this.button5.Text = "button5";
             this.button5.UseVisualStyleBackColor = true;
-            
+            // 
+            // textBox4
+            // 
+            this.textBox4.Location = new System.Drawing.Point(682, 462);
+            this.textBox4.Name = "textBox4";
+            this.textBox4.Size = new System.Drawing.Size(107, 20);
+            this.textBox4.TabIndex = 22;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1370, 512);
+            this.Controls.Add(this.textBox4);
             this.Controls.Add(this.button5);
             this.Controls.Add(this.textBox3);
             this.Controls.Add(this.listView1);
@@ -338,8 +339,8 @@
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.ListView listView1;
         private System.Windows.Forms.TextBox textBox3;
-        private System.Windows.Forms.ImageList imageList1;
         private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.TextBox textBox4;
     }
 }
 

@@ -77,55 +77,49 @@ namespace EMGUCV
                 
                 stopWatch.Start();
                 var faces = face.Detect(greyimage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(100,100),new Size(300,300));
-                //var faces = greyimage.DetectHaarCascade(face, 1.3, 6, HAAR_DETECTION_TYPE.DO_CANNY_PRUNING, new Size(100, 100))[0];
-                Parallel.ForEach(faces, facecount =>
-                {
-                    try
+                
+                    Parallel.ForEach(faces, facecount =>
                     {
-                        ImageFrame.Draw(new CircleF(new PointF(facecount.rect.X + facecount.rect.Width / 2, facecount.rect.Y + facecount.rect.Height / 2), facecount.rect.Width / 2), new Bgr(Color.Green), 3);
-                        if (mydb.getImageCount() != 0)
+                        try
                         {
-                            ImageFrame.ROI = new Rectangle(facecount.rect.X, facecount.rect.Y, facecount.rect.Width, facecount.rect.Height);
-                            Image<Gray, byte> imageroi = ImageFrame.Copy().Convert<Gray, byte>().Resize(100, 100, INTER.CV_INTER_CUBIC);
-                            ImageFrame.ROI = new Rectangle();
-                            imageroi._EqualizeHist();
-                            matchedname = findface(imageroi);
 
-                            ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                            if (Eigen_Recog.IsTrained)
+                            {
+                                ImageFrame.ROI = new Rectangle(facecount.rect.X, facecount.rect.Y, facecount.rect.Width, facecount.rect.Height);
+                                Image<Gray, byte> imageroi = ImageFrame.Copy().Convert<Gray, byte>().Resize(128, 128, INTER.CV_INTER_LINEAR);
+                                ImageFrame.ROI = new Rectangle();
+                                imageroi._EqualizeHist();
+                                
+                                matchedname = Eigen_Recog.Recognise(imageroi,2000);
+
+                                ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                            }
+                            ImageFrame.Draw(new CircleF(new PointF(facecount.rect.X + facecount.rect.Width / 2, facecount.rect.Y + facecount.rect.Height / 2), facecount.rect.Width / 2), new Bgr(Color.Green), 3);
+                        }
+                        catch(Exception e)
+                        {
+                            Console.Write(e);
                         }
 
-                    }
-                    catch
-                    {
 
-                    }
-                    
+                    });
+                    stopWatch.Stop();
+                    TimeSpan ts = stopWatch.Elapsed;
 
-                });
-                stopWatch.Stop();
-                TimeSpan ts = stopWatch.Elapsed;
+                    // Format and display the TimeSpan value. 
+                    string elapsedTime = String.Format("{0}",
 
-                // Format and display the TimeSpan value. 
-                string elapsedTime = String.Format("{0}",
-                    
-                    ts.TotalMilliseconds*10000);
-                textBox2.Text = elapsedTime;
-                listView1.Items.Add(elapsedTime);
+                        ts.TotalMilliseconds * 10000);
+                    textBox2.Text = elapsedTime;
+                    listView1.Items.Add(elapsedTime);
+
+                    stopWatch.Reset();
                 
-                stopWatch.Reset();
                 imageBox1.Image = ImageFrame;//line 2
                 
             }
             
             
-        }
-        private string findface(Image<Gray,byte> result)
-        {
-            string name;
-            
-
-            name = Eigen_Recog.Recognise(result);
-            return name;
         }
         private void TrainFrame()
         {
@@ -133,7 +127,7 @@ namespace EMGUCV
             {
                 string tempPath = "E:/Images/tmp.jpg";
                 Image<Bgr, Byte> ImageFrame = capture.QueryFrame();  //line 1
-                Image<Gray, byte> cropimage = new Image<Gray,byte>(200,200);
+                Image<Gray, byte> cropimage = new Image<Gray, byte>(128, 128);
 
                 //ArrayList pic = new ArrayList();
                 if (ImageFrame != null)
@@ -153,8 +147,8 @@ namespace EMGUCV
                             //pic.Add(CropFrame);
                         }
                         //get bigger face in frame
-                        cropimage = greyimage.Resize(100, 100, INTER.CV_INTER_LINEAR);
-
+                        cropimage = greyimage.Resize(128, 128, INTER.CV_INTER_LINEAR);
+                        cropimage._EqualizeHist();
                         imageBox2.Image = cropimage;     //line 2
 
 
@@ -162,7 +156,7 @@ namespace EMGUCV
                         mydb.InsertImageTraining(textBox1.Text, tempPath);
 
                         //File.Delete(tempPath);
-
+                        //Eigen_Recog.reloadData();
                     }
                     imageBox8.Image = cropimage;
                 }

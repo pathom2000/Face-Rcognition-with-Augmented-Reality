@@ -52,7 +52,7 @@ namespace EMGUCV
         public Classifier_Train()
         {
             
-            termCrit = new MCvTermCriteria(ContTrain, 0.001);
+            
             _IsTrained = LoadTrainingData();
         }
 
@@ -74,30 +74,53 @@ namespace EMGUCV
         /// </summary>
         /// <param name="Input_image"></param>
         /// <returns></returns>
+        public void reloadData()
+        {
+            _IsTrained = LoadTrainingData();
+        }
         public string Recognise(Image<Gray, byte> Input_image, int Eigen_Thresh = -1)
         {
-            if (_IsTrained)
+            try
             {
-                EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
-                //handle if recognizer.EigenDistanceThreshold is set as a null will be returned
-                //NOTE: This is still not working correctley 
-                if (ER == null)
+                if (_IsTrained)
                 {
-                    Eigen_label = "Unknown";
-                    Eigen_Distance = 0;
-                    return Eigen_label;
-                }
-                else
-                {
-                    Eigen_label = ER.Label;
-                    Eigen_Distance = ER.Distance;
-                    if (Eigen_Thresh > -1) Eigen_threshold = Eigen_Thresh;
-                    if (Eigen_Distance > Eigen_threshold) return Eigen_label;
-                    else return "Unknown";
-                }
+                    EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
+                    //handle if recognizer.EigenDistanceThreshold is set as a null will be returned
+                    //NOTE: This is still not working correctley 
+                    if (ER == null)
+                    {
+                        Eigen_label = "Unknown1";
+                        Eigen_Distance = 0;
+                        return Eigen_label + Eigen_Distance.ToString();
+                    }
+                    else
+                    {
+                        Eigen_label = ER.Label;
+                        Eigen_Distance = ER.Distance;
 
+                        if (Eigen_Thresh > -1)
+                        {
+                            Eigen_threshold = Eigen_Thresh;
+                        }
+                        if (Eigen_Distance > Eigen_threshold)
+                        {
+                            return Eigen_label + Eigen_Distance.ToString();
+                        }
+                        else
+                        {
+                            return "Unknown2" + Eigen_Distance.ToString();
+                        }
+                    }
+
+                }
+                else return "";
             }
-            else return "";
+            catch(Exception e)
+            {
+                Console.WriteLine(e);
+                return "";
+            }
+            
         }
 
         /// <summary>
@@ -184,7 +207,7 @@ namespace EMGUCV
                         recognizer = new EigenObjectRecognizer(
                            trainingImages.ToArray(),
                            allname.ToArray(),
-                           5000,
+                           4000,
                            ref termCrit);
                         return true;
                     }
