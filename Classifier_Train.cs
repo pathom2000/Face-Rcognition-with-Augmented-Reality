@@ -32,7 +32,7 @@ namespace EMGUCV
         EigenObjectRecognizer recognizer;
 
         //training variables
-        List<Image<Gray, byte>> trainingImages = new List<Image<Gray, byte>>();//Images
+        Image<Gray, byte>[] trainingImages;//Images
         List<string> allname = new List<string>(); //labels
         int ContTrain, NumLabels;
         float Eigen_Distance = 0;
@@ -52,23 +52,46 @@ namespace EMGUCV
         public Classifier_Train()
         {
             
-            
             _IsTrained = LoadTrainingData();
         }
 
         
         #endregion
 
-        #region Public
-        /// <summary>
-        /// <para>Return(True): If Training data has been located and Eigen Recogniser has been trained</para>
-        /// <para>Return(False): If NO Training data has been located of error in training has occured</para>
-        /// </summary>
         public bool IsTrained
         {
             get { return _IsTrained; }
         }
+        public Image<Gray, float> getAVGImage()
+        {
+            Image<Gray, float> blankImage = new Image<Gray, float>(190, 200);
+            try
+            {
+                if (_IsTrained)
+                {
+                    Image<Gray, float> retImage = recognizer.AverageImage;
 
+                    return retImage;
+                }
+                else return blankImage;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return blankImage;
+            }
+        }
+        public Image<Gray, byte>[] getTrainingImage()
+        {
+            if (_IsTrained)
+            {
+                return trainingImages;
+            }
+            else
+            {
+                return null;
+            }
+        }
         /// <summary>
         /// Recognise a Grayscale Image using the trained Eigen Recogniser
         /// </summary>
@@ -78,20 +101,31 @@ namespace EMGUCV
         {
             _IsTrained = LoadTrainingData();
         }
+        public Image<Gray,float>[] getEigenfaceArray()
+        {
+            if(_IsTrained){
+                return recognizer.EigenImages;
+            }
+            else
+            {
+                return null;
+            }
+        }
         public string Recognise(Image<Gray, byte> Input_image, int Eigen_Thresh = -1)
         {
             try
             {
+                
                 if (_IsTrained)
                 {
+                    recognizer.EigenDistanceThreshold =2500;
                     EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
-                    //handle if recognizer.EigenDistanceThreshold is set as a null will be returned
-                    //NOTE: This is still not working correctley 
+                    
                     if (ER == null)
                     {
-                        Eigen_label = "Unknown1";
+                        Eigen_label = "Unknown";
                         Eigen_Distance = 0;
-                        return Eigen_label + Eigen_Distance.ToString();
+                        return Eigen_label + " "+Eigen_Distance.ToString();
                     }
                     else
                     {
@@ -104,11 +138,11 @@ namespace EMGUCV
                         }
                         if (Eigen_Distance > Eigen_threshold)
                         {
-                            return Eigen_label + Eigen_Distance.ToString();
+                            return Eigen_label + " " + Eigen_Distance.ToString();
                         }
                         else
                         {
-                            return "Unknown2" + Eigen_Distance.ToString();
+                            return "Unknown" + " " + Eigen_Distance.ToString();
                         }
                     }
 
@@ -123,22 +157,14 @@ namespace EMGUCV
             
         }
 
-        /// <summary>
-        /// Sets the threshold confidence value for string Recognise(Image<Gray, byte> Input_image) to be used.
-        /// </summary>
         public int Set_Eigen_Threshold
         {
             set
             {
-                //NOTE: This is still not working correctley 
-                //recognizer.EigenDistanceThreshold = value;
-                Eigen_threshold = value;
+                 recognizer.EigenDistanceThreshold = value;
             }
         }
 
-        /// <summary>
-        /// Returns a string containg the recognised persons name
-        /// </summary>
         public string Get_Eigen_Label
         {
             get
@@ -147,9 +173,6 @@ namespace EMGUCV
             }
         }
 
-        /// <summary>
-        /// Returns a float confidence value for potential false clasifications
-        /// </summary>
         public float Get_Eigen_Distance
         {
             get
@@ -159,19 +182,11 @@ namespace EMGUCV
             }
         }
 
-        /// <summary>
-        /// Returns a string contatining any error that has occured
-        /// </summary>
         public string Get_Error
         {
             get { return Error; }
         }
 
-        
-
-        /// <summary>
-        /// Dispose of Class call Garbage Collector
-        /// </summary>
         public void Dispose()
         {
             recognizer = null;
@@ -179,59 +194,34 @@ namespace EMGUCV
             allname = null;
             Error = null;
             GC.Collect();
-        }
-
-        #endregion
-
-        #region Private
-        /// <summary>
-        /// Loads the traing data given a (string) folder location
-        /// </summary>
-        /// <param name="Folder_location"></param>
-        /// <returns></returns>
+        }  
+  
         private bool LoadTrainingData()
         {
-            try
-            {
-                mydb = new DBConn();
+            mydb = new DBConn();
+            allname = mydb.getLabelList();
+            trainingImages = mydb.getTrainedImageList();
+                
                 if (mydb.getImageCount() > 0)
                 {
-                    allname = mydb.getLabelList();
-
-                    trainingImages = mydb.getTrainedImageList();
-                    if (trainingImages.ToArray().Length != 0)
+                    
+                    if (trainingImages.Length != 0)
                     {
+                        //set round and ...
                         termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
-
-                        //Eigen face recognizer
-                        recognizer = new EigenObjectRecognizer(
-                           trainingImages.ToArray(),
-                           allname.ToArray(),
-                           4000,
-                           ref termCrit);
+                         //Eigen face recognizer
+                        recognizer = new EigenObjectRecognizer(trainingImages,allname.ToArray(),5000,ref termCrit);
                         return true;
                     }
                     else
                     {
                         return false;
-                    }
-                    
+                    }                    
                 }
                 else
                 {
                     return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                Error = ex.ToString();
-                return false;
-            }
-            
+                }           
         }
-
-        #endregion
     }
-
-
 }

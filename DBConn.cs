@@ -132,7 +132,7 @@ namespace EMGUCV
 
         public List<string> getLabelList()
         {
-            string query = "select label from test";
+            string query = "select label from test order by idtest desc";
             List<string> retval = new List<string>();
             Debug.WriteLine(query);
             //open connection
@@ -160,9 +160,9 @@ namespace EMGUCV
             return null;
         }
 
-        public List<Image<Gray, byte>> getTrainedImageList()
+        public Image<Gray, byte>[] getTrainedImageList()
         {
-            string query = "select image,length(image) as filesize from test";
+            string query = "select image,length(image) as filesize from test order by idtest desc";
             List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
             Debug.WriteLine(query);
             byte[] temp;
@@ -197,14 +197,9 @@ namespace EMGUCV
 
                 //close connection
                 this.CloseConnection();
-                return retval;
+                return retval.ToArray();
             }
             return null;
-        }
-        //Select statement
-        /*public ArrayList Select()
-        {
-
-        }*/
+        }        
     }  
 }

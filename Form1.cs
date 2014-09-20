@@ -29,34 +29,55 @@ namespace EMGUCV
         HaarCascade face;
         DBConn mydb;
         MCvFont font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
-        //HaarCascade eye;
+        
         Stopwatch stopWatch = new Stopwatch();
-        List<Image<Gray, byte>> allimage;
+        Image<Gray, byte>[] allimage;
         List<string> allname;
         int count = 0;
         Classifier_Train Eigen_Recog = new Classifier_Train();
         MCvTermCriteria termCrit;
         EigenObjectRecognizer recognizer;
+        Image<Gray, float>[] EigenimageARR;
+        TestRecog t;
+        double ROImargin = 1.1;
+        double widthScale = 0.8;
+        int ROIwidth = 160;
+        int ROIheight = 200;
         public Form1()
         {
             InitializeComponent();
             face = new HaarCascade("haarcascade_frontalface_default.xml");
             mydb = new DBConn();
-            
+            t = new TestRecog();
+            if(Eigen_Recog.IsTrained){
+                EigenimageARR = Eigen_Recog.getEigenfaceArray();
+                allimage = Eigen_Recog.getTrainingImage();
+            }
             
         }
 
         
         
         private void button1_Click(object sender, EventArgs e)
-        {
-            
+        {            
                 capture = new Capture();
-
-                capture.QueryFrame();
-                
+                capture.QueryFrame();                
                 Application.Idle += new EventHandler(ProcessFrame);
                                                
+        }
+        private void button2_Click(object sender, EventArgs e)
+        {
+            TrainFrame();
+        }    
+        private void button5_Click(object sender, EventArgs e)
+        {
+            if(Eigen_Recog.IsTrained){
+                imageBox7.Image = EigenimageARR[count];
+                imageBox8.Image = Eigen_Recog.getAVGImage();
+                imageBox9.Image = allimage[count];
+                count++;
+            }
+            
         }
         private void ReleaseData()
         {
@@ -85,16 +106,17 @@ namespace EMGUCV
 
                             if (Eigen_Recog.IsTrained)
                             {
-                                ImageFrame.ROI = new Rectangle(facecount.rect.X, facecount.rect.Y, facecount.rect.Width, facecount.rect.Height);
-                                Image<Gray, byte> imageroi = ImageFrame.Copy().Convert<Gray, byte>().Resize(128, 128, INTER.CV_INTER_LINEAR);
+                                ImageFrame.ROI = new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height);
+                                Image<Gray, byte> imageroi = ImageFrame.Copy().Convert<Gray, byte>().Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
                                 ImageFrame.ROI = new Rectangle();
                                 imageroi._EqualizeHist();
                                 
-                                matchedname = Eigen_Recog.Recognise(imageroi,2000);
+                                matchedname = Eigen_Recog.Recognise(imageroi);
 
-                                ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                                ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
                             }
-                            ImageFrame.Draw(new CircleF(new PointF(facecount.rect.X + facecount.rect.Width / 2, facecount.rect.Y + facecount.rect.Height / 2), facecount.rect.Width / 2), new Bgr(Color.Green), 3);
+                            ImageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height), new Bgr(Color.LawnGreen), 2);
+                            //ImageFrame.Draw(new CircleF(new PointF(facecount.rect.X + facecount.rect.Width / 2, facecount.rect.Y + facecount.rect.Height / 2), facecount.rect.Width / 2), new Bgr(Color.Green), 3);
                         }
                         catch(Exception e)
                         {
@@ -114,7 +136,7 @@ namespace EMGUCV
                     listView1.Items.Add(elapsedTime);
 
                     stopWatch.Reset();
-                
+                    CvInvoke.cvSmooth(ImageFrame, ImageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                 imageBox1.Image = ImageFrame;//line 2
                 
             }
@@ -127,7 +149,8 @@ namespace EMGUCV
             {
                 string tempPath = "E:/Images/tmp.jpg";
                 Image<Bgr, Byte> ImageFrame = capture.QueryFrame();  //line 1
-                Image<Gray, byte> cropimage = new Image<Gray, byte>(128, 128);
+                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
 
                 //ArrayList pic = new ArrayList();
                 if (ImageFrame != null)
@@ -142,21 +165,25 @@ namespace EMGUCV
                         {
                             ImageFrame.Draw(facecount.rect, new Bgr(Color.Red), 2);
                             ImageFrame.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
-                            greyimage.ROI = new Rectangle(facecount.rect.X, facecount.rect.Y, facecount.rect.Width, facecount.rect.Height);
+                            greyimage.ROI = new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y,(int)(facecount.rect.Width * widthScale), facecount.rect.Height);
                             // CropFrame = greyimage.Copy();
                             //pic.Add(CropFrame);
                         }
                         //get bigger face in frame
-                        cropimage = greyimage.Resize(128, 128, INTER.CV_INTER_LINEAR);
-                        cropimage._EqualizeHist();
-                        imageBox2.Image = cropimage;     //line 2
+                        cropimage = greyimage.Resize(ROIwidth,ROIheight, INTER.CV_INTER_LINEAR);
+                        if (!cropimage.Equals(darkimage)){
+                            cropimage._EqualizeHist();
+                            CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                            imageBox7.Image = cropimage;     //line 2
 
 
-                        cropimage.Save(tempPath);
-                        mydb.InsertImageTraining(textBox1.Text, tempPath);
+                            cropimage.Save(tempPath);
+                            mydb.InsertImageTraining(textBox1.Text, tempPath);
 
-                        //File.Delete(tempPath);
-                        //Eigen_Recog.reloadData();
+                            //File.Delete(tempPath);
+                            Eigen_Recog.reloadData();
+                        }
+                        
                     }
                     imageBox8.Image = cropimage;
                 }
@@ -164,66 +191,79 @@ namespace EMGUCV
             catch
             {
                 MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            }
-            
-            
-            
-            
-            
+            }            
         }
-        
-        private void button2_Click(object sender, EventArgs e)
+        private void SpecialTrainFrame()
         {
-            TrainFrame();
-        }
-        private void FaceDetection(object sender, EventArgs e)
-        //private void FaceDetection()
-        {
-            
-            
-            Image<Bgr, byte> ImageFrame = capture.QueryFrame();
-            ImageFrame._EqualizeHist();
-            Image<Hsv, byte> hsv = ImageFrame.Convert<Hsv, byte>();
+            try
+            {
+                string tempPath = "E:/Images/tmp.jpg";
+                Image<Bgr, Byte> ImageFrame = capture.QueryFrame();  //line 1
+                Image<Gray, byte> darkimage = new Image<Gray, byte>(200,200);
+                Image<Gray, byte> cropimage = new Image<Gray, byte>(200, 200);
+                Image<Gray, byte> resultimage = new Image<Gray, byte>(200, 200);
+                List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
 
-            Image<Gray, byte>[] channel = hsv.Split();
+                for (int i = 0; i<10;i++ )
+                {
+                    if (ImageFrame != null)
+                    {
+                        Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
 
-            Image<Gray, byte> roi = channel[0].Resize(165, 140, INTER.CV_INTER_CUBIC).ThresholdBinaryInv(new Gray(trackBar4.Value), new Gray(255)).Erode(1).Dilate(1);
-            
-            //RectangleF rect = PointCollection.;
-            imageBox4.Image = channel[0].Resize(165, 140, INTER.CV_INTER_CUBIC).ThresholdBinaryInv(new Gray(trackBar4.Value), new Gray(255)).Erode(1);
-            imageBox5.Image = channel[1].Resize(165, 140, INTER.CV_INTER_CUBIC);
-            imageBox6.Image = channel[2].Resize(165, 140, INTER.CV_INTER_CUBIC);
-            imageBox1.Image = roi;
+
+                        var faces = face.Detect(greyimage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(100, 100), new Size(300, 300));
+                        if (faces.Length > 0)
+                        {
+                            foreach (var facecount in faces)
+                            {
+                                ImageFrame.Draw(facecount.rect, new Bgr(Color.Red), 2);
+                                ImageFrame.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                                greyimage.ROI = new Rectangle(facecount.rect.X, facecount.rect.Y, facecount.rect.Width, facecount.rect.Height);
+                                // CropFrame = greyimage.Copy();
+                                //pic.Add(CropFrame);
+                            }
+                            //get bigger face in frame
+                            cropimage = greyimage.Resize(200, 200, INTER.CV_INTER_LINEAR);
+                            if (!cropimage.Equals(darkimage))
+                            {
+                                cropimage._EqualizeHist();
+                                CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                                ImageList.Add(cropimage);
+                            }
+
+                        }
+                        imageBox8.Image = cropimage;
+                    }
+                }
+                resultimage = t.getAVGface(ImageList.ToArray());
+                resultimage.Save(tempPath);
+                mydb.InsertImageTraining(textBox1.Text, tempPath);
+
+                //File.Delete(tempPath);
+                Eigen_Recog.reloadData();
+                
             }
+            catch
+            {
+                MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+        }
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
+            //Eigen_Recog.Set_Eigen_Threshold = trackBar1.Value;
+        }
 
         private void button3_Click(object sender, EventArgs e)
         {
-        if(state == 0){
-                capture = new Capture();
-
-                capture.QueryFrame();
-                state++;
-                state_name = FaceDetection;
-                Application.Idle += FaceDetection;
-                //eye = new HaarCascade("haarcascade_eye.xml");
-                
-                    
-                
-            }else{
-                state--;
-                Application.Idle -= state_name;
-                System.Threading.Thread.Sleep(50);
-                capture = new Capture();
-
-                capture.QueryFrame();
-                state++;
-                state_name = FaceDetection;
-                Application.Idle += FaceDetection;
-            }  
+            TestRecog test = new TestRecog();
+            //imageBox7.Image = test.getAVGface();
         }
 
-        
-
-        
+        private void button4_Click(object sender, EventArgs e)
+        {
+            SpecialTrainFrame();
+        }
+       
+                        
     }
 }
