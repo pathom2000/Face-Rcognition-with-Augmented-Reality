@@ -22,26 +22,25 @@ namespace EMGUCV
     
     public partial class Form1 : Form
     {
-        int state = 0;
-        EventHandler state_name = null;
+        
         private Capture capture;        //takes images from camera as image frames
-        private bool captureInProgress = false; // checks if capture is executing
+        
         HaarCascade face;
         DBConn mydb;
         MCvFont font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
         
         Stopwatch stopWatch = new Stopwatch();
         Image<Gray, byte>[] allimage;
-        List<string> allname;
+        
         int count = 0;
         Classifier_Train Eigen_Recog = new Classifier_Train();
-        MCvTermCriteria termCrit;
-        EigenObjectRecognizer recognizer;
+        FisherClass Fish_Recog = new FisherClass();
+       
         Image<Gray, float>[] EigenimageARR;
         TestRecog t;
-        double ROImargin = 1.1;
-        double widthScale = 0.8;
-        int ROIwidth = 160;
+        double ROImargin = 1;
+        double widthScale = 1;
+        int ROIwidth = 200;
         int ROIheight = 200;
         public Form1()
         {
@@ -49,10 +48,10 @@ namespace EMGUCV
             face = new HaarCascade("haarcascade_frontalface_default.xml");
             mydb = new DBConn();
             t = new TestRecog();
-            if(Eigen_Recog.IsTrained){
+            /*if(Eigen_Recog.IsTrained){
                 EigenimageARR = Eigen_Recog.getEigenfaceArray();
                 allimage = Eigen_Recog.getTrainingImage();
-            }
+            }*/
             
         }
 
@@ -72,10 +71,7 @@ namespace EMGUCV
         private void button5_Click(object sender, EventArgs e)
         {
             if(Eigen_Recog.IsTrained){
-                imageBox7.Image = EigenimageARR[count];
-                imageBox8.Image = Eigen_Recog.getAVGImage();
-                imageBox9.Image = allimage[count];
-                count++;
+                imageBox7.Image = t.getAVGface(mydb.getTrainedImageList());
             }
             
         }
@@ -103,7 +99,7 @@ namespace EMGUCV
                     {
                         try
                         {
-
+                            //if (Fish_Recog.IsTrained)
                             if (Eigen_Recog.IsTrained)
                             {
                                 ImageFrame.ROI = new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height);
@@ -112,7 +108,7 @@ namespace EMGUCV
                                 imageroi._EqualizeHist();
                                 
                                 matchedname = Eigen_Recog.Recognise(imageroi);
-
+                                //matchedname = Fish_Recog.FisherRecognize(imageroi);
                                 ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
                             }
                             ImageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height), new Bgr(Color.LawnGreen), 2);
@@ -182,6 +178,7 @@ namespace EMGUCV
 
                             //File.Delete(tempPath);
                             Eigen_Recog.reloadData();
+                            //Fish_Recog.reloadData();
                         }
                         
                     }
@@ -262,6 +259,12 @@ namespace EMGUCV
         private void button4_Click(object sender, EventArgs e)
         {
             SpecialTrainFrame();
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            Image<Gray, byte>[] dif = t.getDiffFace();
+            imageBox9.Image = dif[0];
         }
        
                         

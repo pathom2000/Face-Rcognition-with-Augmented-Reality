@@ -23,13 +23,25 @@ namespace EMGUCV
     {
         DBConn mydb;
         int totalImage;
+        Image<Gray, byte> AvgFace;
+        Image<Gray, byte>[] trainImageArr;
+        List<Image<Gray, byte>> diffFaceList;
+        Image<Gray, byte>[] diffFaceArr;
         public TestRecog()
         {
             mydb = new DBConn();
             totalImage = mydb.getImageCount();
+            trainImageArr = mydb.getTrainedImageList();
+            diffFaceList = new List<Image<Gray, byte>>();
+            AvgFace = getAVGface(trainImageArr);
+            diffFaceArr = getDiffFace();
         }
-        public Image<Gray,byte>[] getImage(){
-           return mydb.getTrainedImageList();
+        public Image<Gray,byte>[] getImage{
+            get{
+                return mydb.getTrainedImageList();
+            }
+            
+           
         }
         public Image<Gray, byte> getAVGface(Image<Gray,byte>[] ImageSet)
         {
@@ -44,6 +56,15 @@ namespace EMGUCV
                 CvInvoke.cvAdd(AVGface,Image,AVGface,IntPtr.Zero);
             }
             return (AVGface / ImageSet.Length).Convert<Gray, byte>();
+        }
+        public Image<Gray, byte>[] getDiffFace()
+        {
+
+            foreach(Image<Gray, byte> image in trainImageArr){
+
+                diffFaceList.Add(image.Sub(AvgFace));
+            }
+            return diffFaceList.ToArray();
         }
     }
 }

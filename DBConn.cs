@@ -132,7 +132,7 @@ namespace EMGUCV
 
         public List<string> getLabelList()
         {
-            string query = "select label from test order by idtest desc";
+            string query = "select label from test";
             List<string> retval = new List<string>();
             Debug.WriteLine(query);
             //open connection
@@ -149,10 +149,32 @@ namespace EMGUCV
                     string a = rdr.GetString(0);
                     retval.Add(a);
                 }
+                 //close connection
+                this.CloseConnection();
+                return retval;
+            }
+            return null;
+        }
 
-                
+        public List<int> getLabelNumList()
+        {
+            string query = "select idtest from test";
+            List<int> retval = new List<int>();
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
 
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
 
+                while (rdr.Read())
+                {
+                    int a = rdr.GetInt32(0);
+                    retval.Add(a);
+                }
                 //close connection
                 this.CloseConnection();
                 return retval;
@@ -162,7 +184,7 @@ namespace EMGUCV
 
         public Image<Gray, byte>[] getTrainedImageList()
         {
-            string query = "select image,length(image) as filesize from test order by idtest desc";
+            string query = "select image,length(image) as filesize from test";
             List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
             Debug.WriteLine(query);
             byte[] temp;
