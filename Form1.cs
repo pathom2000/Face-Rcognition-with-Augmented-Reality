@@ -141,6 +141,7 @@ namespace EMGUCV
                                     matchedname = Eigen_Recog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
                                     if (!matchedname.Equals("UnknownNull") && !matchedname.Equals("UnknownFace"))
                                     {
+                                        Console.WriteLine(matchedname);
                                         result.Add(matchedname);
                                     }
                                     
@@ -151,6 +152,8 @@ namespace EMGUCV
                             }
                             
                             ImageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height), new Bgr(Color.LawnGreen), 2);
+
+                            //detect eyeglass section
                             /*var eyeglasses = eyeglass.DetectMultiScale(imageroi, 1.3, 4, new Size(5, 5), new Size(50, 50));
                             foreach (var eyeglasseses in eyeglasses)
                             {
@@ -215,7 +218,7 @@ namespace EMGUCV
                         //get bigger face in frame
                         cropimage = greyimage.Resize(ROIwidth,ROIheight, INTER.CV_INTER_LINEAR);
                         if (!cropimage.Equals(darkimage)){
-                            cropimage._EqualizeHist();
+                            //cropimage._EqualizeHist();
                             //CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                             //cropimage = Eigen_Recog.convertLBP(cropimage,1);
                             imageBox7.Image = cropimage;     //line 2
@@ -293,7 +296,16 @@ namespace EMGUCV
                 MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         }
-        
+        private void testEyeglass(object sender, EventArgs arg)
+        {
+            Image<Gray, byte> test = new Image<Gray, byte>("test.bmp");
+            imageBox7.Image = test;
+            Image<Gray, float> test2 = test.Laplace(1);
+            Image<Gray, float> test3 = test.Sobel(0,1, 3);
+            Image<Gray, byte> test4 = new Image<Gray, byte>(200,200);
+            CvInvoke.cvInpaint(test, test2.Convert<Gray, byte>().Canny(29, 200).Dilate(1), test4, 7, INPAINT_TYPE.CV_INPAINT_NS);
+            imageBox8.Image = test4;
+        }
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
             //Eigen_Recog.Set_Eigen_Threshold = trackBar1.Value;
@@ -301,13 +313,12 @@ namespace EMGUCV
 
         private void button3_Click(object sender, EventArgs e)
         {
-            TestRecog test = new TestRecog();
-            //imageBox7.Image = test.getAVGface();
+            Application.Idle += new EventHandler(testEyeglass); 
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
-            SpecialTrainFrame();
+           
         }
 
         private void button6_Click(object sender, EventArgs e)

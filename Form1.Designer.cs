@@ -153,7 +153,7 @@
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(75, 23);
             this.button3.TabIndex = 25;
-            this.button3.Text = "Recog";
+            this.button3.Text = "TEst";
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
@@ -180,18 +180,22 @@
             // trackBar2
             // 
             this.trackBar2.Location = new System.Drawing.Point(938, 351);
-            this.trackBar2.Maximum = 255;
+            this.trackBar2.Maximum = 500;
             this.trackBar2.Name = "trackBar2";
             this.trackBar2.Size = new System.Drawing.Size(104, 45);
+            this.trackBar2.SmallChange = 5;
             this.trackBar2.TabIndex = 29;
             // 
             // trackBar3
             // 
             this.trackBar3.Location = new System.Drawing.Point(938, 300);
-            this.trackBar3.Maximum = 255;
+            this.trackBar3.Maximum = 29;
+            this.trackBar3.Minimum = 1;
             this.trackBar3.Name = "trackBar3";
             this.trackBar3.Size = new System.Drawing.Size(104, 45);
+            this.trackBar3.SmallChange = 2;
             this.trackBar3.TabIndex = 30;
+            this.trackBar3.Value = 1;
             // 
             // Form1
             // 
