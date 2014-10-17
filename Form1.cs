@@ -40,7 +40,7 @@ namespace EMGUCV
        // FisherClass Fish_Recog = new FisherClass();
        
         Image<Gray, float>[] EigenimageARR;
-        TestRecog t;
+        //TestRecog t;
         double ROImargin = 1.00;
         double widthScale = 1.00;
         int ROIwidth = 200;
@@ -55,7 +55,7 @@ namespace EMGUCV
             eyeglass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
             mydb = new DBConn();
             result = new List<string>();
-            t = new TestRecog();
+            //t = new TestRecog();
             /*if(Eigen_Recog.IsTrained){
                 EigenimageARR = Eigen_Recog.getEigenfaceArray();
                 allimage = Eigen_Recog.getTrainingImage();
@@ -79,7 +79,7 @@ namespace EMGUCV
         private void button5_Click(object sender, EventArgs e)
         {
             if(Eigen_Recog.IsTrained){
-                imageBox7.Image = t.getAVGface(mydb.getTrainedImageList());
+                //imageBox7.Image = t.getAVGface(mydb.getTrainedImageList());
             }
             
         }
@@ -283,7 +283,7 @@ namespace EMGUCV
                         imageBox8.Image = cropimage;
                     }
                 }
-                resultimage = t.getAVGface(ImageList.ToArray());
+                //resultimage = t.getAVGface(ImageList.ToArray());
                 resultimage.Save(tempPath);
                 mydb.InsertImageTraining(textBox1.Text, tempPath);
 
@@ -298,13 +298,48 @@ namespace EMGUCV
         }
         private void testEyeglass(object sender, EventArgs arg)
         {
+
+            float[,] sobelA = new float[3, 3] { { -4, 8, -4 }, { -5, 10, -5 }, { -4, 8, -4 } };
+            float[,] sobelB = new float[3, 3] { { 6, -4, -3 }, { -4, 10, -4 }, { -3, -4, 6 } };
+            float[,] sobelC = new float[3, 3] { { -4, -5, -4 }, { 8,10,8 }, { -4, -5, -4 } };
+            float[,] sobelD = new float[3, 3] { { -3, -4, 6 }, { -5, 10, -5 }, { 6, -4, -3 } };
+            float[,] sobel2A = new float[3, 3] { { -1, 0, 1 }, { -2,0,2 }, { -1, 0, 1 } };
+            float[,] sobel2B = new float[3, 3] { { 0, 1, 2 }, { -1, 0, 1 }, { -2,-1,0 } };
+            float[,] sobel2C = new float[3, 3] { { 1,2,1 }, {0,0,0 }, { -1,-2,-1 } };
+            float[,] sobel2D = new float[3, 3] { { -2,-1,0 }, { -1,0,1 }, { 0,1,2 } };
+            Matrix<float> sobel0 = new Matrix<float>(sobelA);
+            Matrix<float> sobel45 = new Matrix<float>(sobelB);
+            Matrix<float> sobel90 = new Matrix<float>(sobelC);
+            Matrix<float> sobel135 = new Matrix<float>(sobelD);
+            Matrix<float> sobel0x = new Matrix<float>(sobel2A);
+            Matrix<float> sobel45x = new Matrix<float>(sobel2B);
+            Matrix<float> sobel90x = new Matrix<float>(sobel2C);
+            Matrix<float> sobel135x = new Matrix<float>(sobel2D);
+            Point anc = new Point();
+            anc.X = -1;
+            anc.Y = -1;
             Image<Gray, byte> test = new Image<Gray, byte>("test.bmp");
             imageBox7.Image = test;
             Image<Gray, float> test2 = test.Laplace(1);
-            Image<Gray, float> test3 = test.Sobel(0,1, 3);
+            Image<Gray, float> test0 = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test45 = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test90 = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test135 = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test0x = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test45x = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test90x = new Image<Gray, float>(200, 200);
+            Image<Gray, float> test135x = new Image<Gray, float>(200, 200);
+            CvInvoke.cvFilter2D(test, test0, sobel0, anc);
+            CvInvoke.cvFilter2D(test, test45, sobel45, anc);
+            CvInvoke.cvFilter2D(test, test90, sobel90, anc);
+            CvInvoke.cvFilter2D(test, test135, sobel135, anc);
+            CvInvoke.cvFilter2D(test, test0x, sobel0x, anc);
+            CvInvoke.cvFilter2D(test, test45x, sobel45x, anc);
+            CvInvoke.cvFilter2D(test, test90x, sobel90x, anc);
+            CvInvoke.cvFilter2D(test, test135x, sobel135x, anc);
             Image<Gray, byte> test4 = new Image<Gray, byte>(200,200);
             CvInvoke.cvInpaint(test, test2.Convert<Gray, byte>().Canny(29, 200).Dilate(1), test4, 7, INPAINT_TYPE.CV_INPAINT_NS);
-            imageBox8.Image = test4;
+            imageBox8.Image = ((test0 + test45 + test90 + test135 + test0x + test45x + test90x + test135x) / 8).Laplace(3).Convert<Gray, byte>();//.Canny(trackBar3.Value, trackBar2.Value);
         }
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
@@ -323,8 +358,8 @@ namespace EMGUCV
 
         private void button6_Click(object sender, EventArgs e)
         {
-            Image<Gray, byte>[] dif = t.getDiffFace();
-            imageBox9.Image = dif[0];
+            //Image<Gray, byte>[] dif = t.getDiffFace();
+            //imageBox9.Image = dif[0];
         }
        
                         
