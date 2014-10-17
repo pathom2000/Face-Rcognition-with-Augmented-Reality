@@ -26,6 +26,9 @@ namespace EMGUCV
         private Capture capture;        //takes images from camera as image frames
         
         HaarCascade face;
+        HaarCascade eye;
+        
+        CascadeClassifier eyeglass;
         DBConn mydb;
         MCvFont font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
         
@@ -34,19 +37,24 @@ namespace EMGUCV
         
         int count = 0;
         Classifier_Train Eigen_Recog = new Classifier_Train();
-        FisherClass Fish_Recog = new FisherClass();
+       // FisherClass Fish_Recog = new FisherClass();
        
         Image<Gray, float>[] EigenimageARR;
         TestRecog t;
-        double ROImargin = 1;
-        double widthScale = 1;
+        double ROImargin = 1.00;
+        double widthScale = 1.00;
         int ROIwidth = 200;
         int ROIheight = 200;
+        string name = "Processing...";
+        List<string> result;
         public Form1()
         {
             InitializeComponent();
             face = new HaarCascade("haarcascade_frontalface_default.xml");
+            eye = new HaarCascade("haarcascade_eye.xml");
+            eyeglass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
             mydb = new DBConn();
+            result = new List<string>();
             t = new TestRecog();
             /*if(Eigen_Recog.IsTrained){
                 EigenimageARR = Eigen_Recog.getEigenfaceArray();
@@ -88,30 +96,68 @@ namespace EMGUCV
             if(ImageFrame != null){
                 string matchedname;
                 Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
-                Image<Hsv, byte> hsv = ImageFrame.Convert<Hsv, byte>();
+                Image<Gray, byte> imageroi;
                 
                 
                 
                 stopWatch.Start();
                 var faces = face.Detect(greyimage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(100,100),new Size(300,300));
-                
+                if (faces.Length == 0)
+                {
+                    name = "Processing...";
+                    result.Clear();
+                }
                     Parallel.ForEach(faces, facecount =>
                     {
                         try
                         {
                             //if (Fish_Recog.IsTrained)
+                            ImageFrame.ROI = new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height);
+                            imageroi = ImageFrame.Copy().Convert<Gray, byte>();
+                            ImageFrame.ROI = new Rectangle();
                             if (Eigen_Recog.IsTrained)
                             {
-                                ImageFrame.ROI = new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height);
-                                Image<Gray, byte> imageroi = ImageFrame.Copy().Convert<Gray, byte>().Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-                                ImageFrame.ROI = new Rectangle();
                                 imageroi._EqualizeHist();
+                                //imageroi = convertLBP(imageroi, 1);
                                 
-                                matchedname = Eigen_Recog.Recognise(imageroi);
                                 //matchedname = Fish_Recog.FisherRecognize(imageroi);
-                                ImageFrame.Draw(matchedname, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
+                                //find the most relative face
+                                if (result.Count == 21) {
+                                    int max = 0;
+                                    string mostFace = "";
+                                    foreach (string value in result.Distinct())
+                                    {
+                                        System.Diagnostics.Debug.WriteLine("\"{0}\" occurs {1} time(s).", value, result.Count(v => v == value));
+                                        if (result.Count(v => v == value) > max)
+                                        {
+                                            max = result.Count(v => v == value);
+                                            mostFace = value;
+                                        }
+                                    }
+                                    name = mostFace;
+                                }
+                                else
+                                {
+                                    matchedname = Eigen_Recog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
+                                    if (!matchedname.Equals("UnknownNull") && !matchedname.Equals("UnknownFace"))
+                                    {
+                                        result.Add(matchedname);
+                                    }
+                                    
+                                }
+
+                                ImageFrame.Draw(name, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
+                                
                             }
+                            
                             ImageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), facecount.rect.Height), new Bgr(Color.LawnGreen), 2);
+                            /*var eyeglasses = eyeglass.DetectMultiScale(imageroi, 1.3, 4, new Size(5, 5), new Size(50, 50));
+                            foreach (var eyeglasseses in eyeglasses)
+                            {
+                                ImageFrame.Draw(new Rectangle(facecount.rect.X + eyeglasseses.X, facecount.rect.Y + eyeglasseses.Y, eyeglasseses.Width, eyeglasseses.Height), new Bgr(Color.Aquamarine), 2);
+                            }*/
+                            
+                            
                             //ImageFrame.Draw(new CircleF(new PointF(facecount.rect.X + facecount.rect.Width / 2, facecount.rect.Y + facecount.rect.Height / 2), facecount.rect.Width / 2), new Bgr(Color.Green), 3);
                         }
                         catch(Exception e)
@@ -133,6 +179,7 @@ namespace EMGUCV
 
                     stopWatch.Reset();
                     CvInvoke.cvSmooth(ImageFrame, ImageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                    
                 imageBox1.Image = ImageFrame;//line 2
                 
             }
@@ -169,7 +216,8 @@ namespace EMGUCV
                         cropimage = greyimage.Resize(ROIwidth,ROIheight, INTER.CV_INTER_LINEAR);
                         if (!cropimage.Equals(darkimage)){
                             cropimage._EqualizeHist();
-                            CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                            //CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                            //cropimage = Eigen_Recog.convertLBP(cropimage,1);
                             imageBox7.Image = cropimage;     //line 2
 
 
@@ -187,7 +235,7 @@ namespace EMGUCV
             }
             catch
             {
-                MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+               // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }            
         }
         private void SpecialTrainFrame()
@@ -245,6 +293,7 @@ namespace EMGUCV
                 MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         }
+        
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
             //Eigen_Recog.Set_Eigen_Threshold = trackBar1.Value;
