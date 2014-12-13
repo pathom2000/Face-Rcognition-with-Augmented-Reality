@@ -30,7 +30,7 @@ namespace EMGUCV
         //Eigen
         MCvTermCriteria termCrit;
         EigenObjectRecognizer recognizer;
-
+        FisherFaceRecognizer f;
         //training variables
         Image<Gray, byte>[] trainingImages;//Images
         List<string> allname = new List<string>(); //labels

@@ -104,6 +104,7 @@ namespace EMGUCV
                 this.CloseConnection();
             }
         }
+
         public Int32 getImageCount()
         {
             string query = "select count(*) from test";
@@ -122,6 +123,51 @@ namespace EMGUCV
                 
                 retval = rdr.GetInt32(0);
                 
+
+                //close connection
+                this.CloseConnection();
+                return retval;
+            }
+            return 0;
+        }
+
+        public void DeleteOldestImage(string name)
+        {
+
+            string query = "DELETE from test WHERE label ='"+name+"' ORDER BY timestamp LIMIT 1";
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+        }
+
+        public Int32 getSpecifyImageCount(string name)
+        {
+            string query = "select count(*) from test where label = '"+name+"'";
+            int retval;
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                rdr.Read();
+
+                retval = rdr.GetInt32(0);
+
 
                 //close connection
                 this.CloseConnection();
@@ -184,6 +230,7 @@ namespace EMGUCV
 
         public Image<Gray, byte>[] getTrainedImageList()
         {
+            Image<Gray, byte> addimage;
             string query = "select image,length(image) as filesize from test";
             List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
             Debug.WriteLine(query);
@@ -209,7 +256,7 @@ namespace EMGUCV
 
                     Image imtemp = Image.FromStream(stream);
                     
-                    Image<Gray, byte> addimage = new Image<Gray, byte>(new Bitmap(imtemp));
+                    addimage = new Image<Gray, byte>(new Bitmap(imtemp));
 
                     retval.Add(addimage);
                 }

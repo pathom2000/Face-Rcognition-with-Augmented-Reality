@@ -63,7 +63,7 @@ namespace EMGUCV
             
             
         }
-        public string FisherRecognize(IImage testimage)
+        public int FisherRecognize(IImage testimage)
         {
             try
             {
@@ -72,18 +72,18 @@ namespace EMGUCV
                 {
                     
                     FaceRecognizer.PredictionResult FR = f_recognize.Predict(testimage);
-                    Console.WriteLine(FR.Distance);
+                    Console.WriteLine(FR.Label);
                     
-                    return FR.Distance.ToString() ;
+                    return FR.Label ;
                     
 
                 }
-                else return "";
+                else return 0;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return "";
+                return 0;
             }
         }
         public bool IsTrained
