@@ -23,62 +23,61 @@ namespace EMGUCV
     
     public partial class Form1 : Form
     {
-        
-        private Capture capture;        //takes images from camera as image frames
-        
-        HaarCascade face;       
+          
         DBConn mydb;
-        MCvFont font;
-        
+        MCvFont font;        
         Stopwatch stopWatch = new Stopwatch();
-                       
-        Classifier_Train Eigen_Recog = new Classifier_Train();             
+        Capture capture;
+        HaarCascade face;
+
+        List<string> recogResult;
+        Classifier_Train eigenRecog = new Classifier_Train();  
+        CascadeClassifier eyeWithGlass;
+        CascadeClassifier nose;
+        CascadeClassifier mouth;
+        Size minEye;
+        Size maxEye;
+        Size minNose;
+        Size maxNose;
+        Size minMouth;
+        Size maxMouth;
+        Point[] coord;
         double ROImargin = 1.00;
         double widthScale = 1.00;
         int ROIwidth = 140;
         int ROIheight = 175;
-
         bool learningTag = true;
+
         string name = "Processing...";
         string tempPath = "E:/Images/tmp.jpg";
-        List<string> result;
-        ImproveRecognize imReg;
-
-        
-        CascadeClassifier eyewithglass;
-        CascadeClassifier nose;
-        CascadeClassifier mouth;
-        Size mineye;
-        Size maxeye;
-        Size minnose;
-        Size maxnose;
-        Size minmouth;
-        Size maxmouth;
-        Point[] coord;
+        string logName;
 
         public Form1()
         {
             InitializeComponent();
-            imReg = new ImproveRecognize();
-            face = new HaarCascade("haarcascade_frontalface_default.xml");            
-            mydb = new DBConn();
-            result = new List<string>();
 
-            mineye = new Size(10, 10);
-            maxeye = new Size(225, 225);
-            minnose = new Size(10, 10);
-            maxnose = new Size(225, 225);
-            minmouth = new Size(10, 10);
-            maxmouth = new Size(225, 225);
-            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
-            eyewithglass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
+            face = new HaarCascade("haarcascade_frontalface_default.xml");
+            eyeWithGlass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
             nose = new CascadeClassifier("haarcascade_mcs_nose.xml");
             mouth = new CascadeClassifier("haarcascade_mcs_mouth.xml");
-            coord = new Point[4];
-        }
 
-        
-        
+            mydb = new DBConn();
+
+            recogResult = new List<string>();
+            minEye = new Size(10, 10);
+            maxEye = new Size(225, 225);
+            minNose = new Size(10, 10);
+            maxNose = new Size(225, 225);
+            minMouth = new Size(10, 10);
+            maxMouth = new Size(225, 225);
+            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);    
+
+            //log record
+            DateTime now = DateTime.Now;
+            logName = now.ToString();
+            logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");      
+        }
+     
         private void button1_Click(object sender, EventArgs e)
         {            
                 capture = new Capture();
@@ -90,11 +89,7 @@ namespace EMGUCV
         {
             TrainFrame();
         }    
-        private void button5_Click(object sender, EventArgs e)
-        {
-            
-            
-        }
+        
         private void ReleaseData()
         {
             if (capture != null)
@@ -102,40 +97,39 @@ namespace EMGUCV
         }
         private void ProcessFrame(object sender, EventArgs arg)
         {
-            Image<Bgr, Byte> ImageFrame = capture.QueryFrame();  //line 1
-            Image<Gray, byte> learnImage = new Image<Gray, byte>(ROIwidth,ROIheight);  //line 1
-            Point[] facefeatureCoord = new Point[4];
+            Image<Bgr, Byte> imageFrame = capture.QueryFrame();
+            Image<Gray, byte> learnImage = new Image<Gray, byte>(ROIwidth,ROIheight);           
 
-            if(ImageFrame != null){
+            if(imageFrame != null){
                 string matchedname;
-                Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
+                Image<Gray, byte> greyImage = imageFrame.Convert<Gray, byte>();
                 Image<Gray, byte> imageroi;
-                greyimage._EqualizeHist();
+                greyImage._EqualizeHist();
                 
                 
                 stopWatch.Start();
-                var faces = face.Detect(greyimage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
+                var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
                 
                 if (faces.Length == 0)
                 {
-                    var eyes = eyewithglass.DetectMultiScale(greyimage, 1.3, 6, mineye, maxeye);
-                    if(eyes.Length == 2){
+                    var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                    if(eyeObjects.Length == 2){
                         /*Console.WriteLine("helper");
-                        if(eyes[0].X > eyes[1].X)
+                        if(eyeObjects[0].X > eyeObjects[1].X)
                         {
-                            var temp = eyes[0];
-                            eyes[0] = eyes[1];
-                            eyes[1] = temp;
+                            var temp = eyeObjects[0];
+                            eyeObjects[0] = eyeObjects[1];
+                            eyeObjects[1] = temp;
                         }
-                        int betweeneLength = eyes[1].X - eyes[0].X;
-                        int middleposition = eyes[0].X + ((betweeneLength + eyes[1].Width )/ 2);
+                        int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
+                        int middleposition = eyeObjects[0].X + ((betweeneLength + eyeObjects[1].Width )/ 2);
                         int forheadpeak = (int)(0.8 * betweeneLength);//
                         int forheadpeakpeak = (int)(0.7 * betweeneLength);//
                         int forheadbelowpeak = (int)(0.4 * betweeneLength);
                         int foreheadpoint = (int)(0.6 * betweeneLength);
                         int neareyebrowpoint = (int)(0.2 * betweeneLength);
-                        int lefteyebrowpoint = eyes[0].X;//
-                        int righteyebrowpoint = eyes[0].X + betweeneLength + eyes[1].Width;//
+                        int lefteyebrowpoint = eyeObjects[0].X;//
+                        int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
                         //int nosepoint =
                         int xx = (int)((5.0 / 12.0) * betweeneLength);
                         int xxx = (int)((1.5 / 8.0) * betweeneLength);
@@ -150,43 +144,43 @@ namespace EMGUCV
                         {
                             for (int j = 0; j < round; j++)
                             {
-                                tempcolor += greyimage[middleposition - around + i, eyes[0].Y + forheadpeak - around + j].Intensity;
+                                tempcolor += greyImage[middleposition - around + i, eyeObjects[0].Y + forheadpeak - around + j].Intensity;
                             }
                         }
                         Gray skincolor = new Gray(tempcolor/(round*round));
                         Point[] p = new Point[7];
-                        p[0] = new Point(middleposition, eyes[0].Y - forheadpeak);
+                        p[0] = new Point(middleposition, eyeObjects[0].Y - forheadpeak);
 
-                        p[1] = new Point(eyes[0].X + (eyes[0].Width / 2), eyes[0].Y - forheadpeakpeak);
-                        p[2] = new Point(eyes[0].X - x1, eyes[0].Y - forheadbelowpeak);
-                        p[3] = new Point(lefteyebrowpoint - xxx, eyes[0].Y + (eyes[0].Height/6));
+                        p[1] = new Point(eyeObjects[0].X + (eyeObjects[0].Width / 2), eyeObjects[0].Y - forheadpeakpeak);
+                        p[2] = new Point(eyeObjects[0].X - x1, eyeObjects[0].Y - forheadbelowpeak);
+                        p[3] = new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y + (eyeObjects[0].Height/6));
 
-                        p[4] = new Point(righteyebrowpoint + xxx, eyes[0].Y + (eyes[0].Height /6));
-                        p[5] = new Point(righteyebrowpoint + x1, eyes[0].Y - forheadbelowpeak);
-                        p[6] = new Point(eyes[1].X + (eyes[1].Width / 2), eyes[0].Y - forheadpeakpeak);
+                        p[4] = new Point(righteyebrowpoint + xxx, eyeObjects[0].Y + (eyeObjects[0].Height /6));
+                        p[5] = new Point(righteyebrowpoint + x1, eyeObjects[0].Y - forheadbelowpeak);
+                        p[6] = new Point(eyeObjects[1].X + (eyeObjects[1].Width / 2), eyeObjects[0].Y - forheadpeakpeak);
 
-                        //ImageFrame.Draw(new Rectangle(new Point(eyes[0].X, eyes[0].Y), new Size(betweeneLength + eyes[1].Width, eyes[0].Height)), new Bgr(Color.Aqua), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(middleposition,eyes[0].Y+ foreheadpoint), 1), new Bgr(Color.Yellow), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(middleposition,eyes[0].Y - forheadpeak), 1), new Bgr(Color.Yellow), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(middleposition, eyes[0].Y - neareyebrowpoint), 1), new Bgr(Color.Gold), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint - xxx, eyes[0].Y), 1), new Bgr(Color.AliceBlue), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + xxx, eyes[0].Y), 1), new Bgr(Color.AliceBlue), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint, eyes[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(righteyebrowpoint, eyes[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
-                        //ImageFrame.DrawPolyline(p,true, new Bgr(Color.Azure), 2);
-                        greyimage.FillConvexPoly(p, skincolor);
-                        //ImageFrame.Draw(new CircleF(new PointF(eyes[0].X - x1, eyes[0].Y - forheadbelowpeak), 1), new Bgr(Color.LimeGreen), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + x1, eyes[0].Y - forheadbelowpeak), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.Draw(new Rectangle(new Point(eyeObjects[0].X, eyeObjects[0].Y), new Size(betweeneLength + eyeObjects[1].Width, eyeObjects[0].Height)), new Bgr(Color.Aqua), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(middleposition,eyeObjects[0].Y+ foreheadpoint), 1), new Bgr(Color.Yellow), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(middleposition,eyeObjects[0].Y - forheadpeak), 1), new Bgr(Color.Yellow), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(middleposition, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.Gold), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint - xxx, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + xxx, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.DrawPolyline(p,true, new Bgr(Color.Azure), 2);
+                        greyImage.FillConvexPoly(p, skincolor);
+                        //imageFrame.Draw(new CircleF(new PointF(eyeObjects[0].X - x1, eyeObjects[0].Y - forheadbelowpeak), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + x1, eyeObjects[0].Y - forheadbelowpeak), 1), new Bgr(Color.LimeGreen), 2);
 
-                        //ImageFrame.Draw(new CircleF(new PointF(eyes[0].X + (eyes[0].Width / 2), eyes[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
-                        //ImageFrame.Draw(new CircleF(new PointF(eyes[1].X + (eyes[1].Width / 2), eyes[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(eyeObjects[0].X + (eyeObjects[0].Width / 2), eyeObjects[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(eyeObjects[1].X + (eyeObjects[1].Width / 2), eyeObjects[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
                         */
                     }
-                    else
+                    else //not see eye in frame
                     {
                         name = "Processing...";
                         learningTag = !learningTag;
-                        result.Clear();
+                        recogResult.Clear();
                     }
                     
                     
@@ -198,45 +192,45 @@ namespace EMGUCV
                         try
                         {
 
-                            ImageFrame.Draw(facecount.rect.Width + " " + facecount.rect.Height, ref font, new Point(facecount.rect.X - 25, facecount.rect.Y - 25), new Bgr(Color.Red));
-                            var eyes = eyewithglass.DetectMultiScale(greyimage, 1.3, 6, mineye, maxeye);
-                            if (eyes.Length == 2)
+                            imageFrame.Draw(facecount.rect.Width + " " + facecount.rect.Height, ref font, new Point(facecount.rect.X - 25, facecount.rect.Y - 25), new Bgr(Color.Red));
+                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                            if (eyeObjects.Length == 2)
                             {
                                 Console.WriteLine("eye");
-                                if (eyes[0].X > eyes[1].X)
+                                if (eyeObjects[0].X > eyeObjects[1].X)
                                 {
-                                    var temp = eyes[0];
-                                    eyes[0] = eyes[1];
-                                    eyes[1] = temp;
+                                    var temp = eyeObjects[0];
+                                    eyeObjects[0] = eyeObjects[1];
+                                    eyeObjects[1] = temp;
                                 }
 
-                                int betweeneLength = eyes[1].X - eyes[0].X;
-                                int lefteyebrowpoint = eyes[0].X;//
-                                int righteyebrowpoint = eyes[0].X + betweeneLength + eyes[1].Width;//
+                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
+                                int lefteyebrowpoint = eyeObjects[0].X;//
+                                int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
                                 int xxx = (int)((1.5 / 8.0) * betweeneLength);
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3*betweeneLength);
 
                                 Console.WriteLine((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx)+" "+ faceheight);
-                                ImageFrame.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyes[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
-                                imageroi = ImageFrame.Copy().Convert<Gray, byte>();
-                                ImageFrame.ROI = new Rectangle();
-                                ImageFrame.Draw(new Rectangle(new Point(lefteyebrowpoint - xxx, eyes[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight)), new Bgr(Color.SpringGreen), 2);
-                                if (Eigen_Recog.IsTrained)
+                                imageFrame.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
+                                imageroi = imageFrame.Copy().Convert<Gray, byte>();
+                                imageFrame.ROI = new Rectangle();
+                                imageFrame.Draw(new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight)), new Bgr(Color.SpringGreen), 2);
+                                if (eigenRecog.IsTrained)
                                 {
                                     imageroi._EqualizeHist();
 
                                     //find the most relative face
-                                    if (result.Count == 21)
+                                    if (recogResult.Count == 21)
                                     {
                                         int max = 0;
                                         string mostFace = "";
-                                        foreach (string value in result.Distinct())
+                                        foreach (string value in recogResult.Distinct())
                                         {
-                                            System.Diagnostics.Debug.WriteLine("\"{0}\" occurs {1} time(s).", value, result.Count(v => v == value));
-                                            if (result.Count(v => v == value) > max)
+                                            System.Diagnostics.Debug.WriteLine("\"{0}\" occurs {1} time(s).", value, recogResult.Count(v => v == value));
+                                            if (recogResult.Count(v => v == value) > max)
                                             {
-                                                max = result.Count(v => v == value);
+                                                max = recogResult.Count(v => v == value);
                                                 mostFace = value;
                                             }
                                         }
@@ -250,7 +244,7 @@ namespace EMGUCV
                                             {
                                                 mydb.DeleteOldestImage(name);
                                             }
-                                            Eigen_Recog.reloadData();
+                                            eigenRecog.reloadData();
                                             learningTag = !learningTag;
                                             Console.WriteLine("Learning " + name);
                                         }
@@ -259,35 +253,21 @@ namespace EMGUCV
                                     else
                                     {
                                         Console.WriteLine("recog");
-                                        matchedname = Eigen_Recog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
-                                        
+                                        matchedname = eigenRecog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
+
                                         if (!matchedname.Equals("UnknownNull") && !matchedname.Equals("UnknownFace"))
                                         {
                                             Console.WriteLine(matchedname);
-                                            result.Add(matchedname);
+                                            recogResult.Add(matchedname);
                                         }
-
-                                        /*facefeatureCoord = imReg.drawFaceNet(imageroi);
-                                    
-                                    
-                                        if (facefeatureCoord != null)
-                                        {
-                                            for (int i = 0; i < 4; i++)
-                                            {
-                                                facefeatureCoord[i].X += facecount.rect.X;
-                                                facefeatureCoord[i].Y += facecount.rect.Y;
-                                            }
-                                            ImageFrame.DrawPolyline(facefeatureCoord,true,new Bgr(Color.Wheat),3);
-                                        }*/
-
 
                                     }
 
-                                    ImageFrame.Draw(name, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
+                                    imageFrame.Draw(name, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
 
                                 }
 
-                                ImageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), (int)(facecount.rect.Height * 1.1)), new Bgr(Color.LawnGreen), 2);
+                                imageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), (int)(facecount.rect.Height * 1.1)), new Bgr(Color.LawnGreen), 2);
 
                             }
                         }
@@ -308,12 +288,12 @@ namespace EMGUCV
                         ts.TotalMilliseconds * 10000);
                     textBox2.Text = elapsedTime;
                     listView1.Items.Add(elapsedTime);
-
+                    File.AppendAllText(@"E:\Images\log\" + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
                     stopWatch.Reset();
-                    CvInvoke.cvSmooth(ImageFrame, ImageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
+                    CvInvoke.cvSmooth(imageFrame, imageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                    
-                //imageBox1.Image = greyimage;//line 2
-               imageBox1.Image = ImageFrame;//line 2
+                //imageBox1.Image = greyImage;//line 2
+               imageBox1.Image = imageFrame;//line 2
             }
             
             
@@ -324,52 +304,52 @@ namespace EMGUCV
             try
             {
                 
-                Image<Bgr, Byte> ImageFrame = capture.QueryFrame();  //line 1
+                Image<Bgr, Byte> imageFrame = capture.QueryFrame();  //line 1
                 Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
                 Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
 
                 //ArrayList pic = new ArrayList();
-                if (ImageFrame != null)
+                if (imageFrame != null)
 
                 {
-                    Image<Gray, byte> greyimage = ImageFrame.Convert<Gray, byte>();
+                    Image<Gray, byte> greyImage = imageFrame.Convert<Gray, byte>();
 
 
-                    var faces = face.Detect(greyimage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
+                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
                     if (faces.Length > 0)
                     {
                         foreach (var facecount in faces)
                         {
-                            var eyes = eyewithglass.DetectMultiScale(greyimage, 1.3, 6, mineye, maxeye);
-                            if (eyes.Length == 2)
+                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                            if (eyeObjects.Length == 2)
                             {
                                 Console.WriteLine("eye");
-                                if (eyes[0].X > eyes[1].X)
+                                if (eyeObjects[0].X > eyeObjects[1].X)
                                 {
-                                    var temp = eyes[0];
-                                    eyes[0] = eyes[1];
-                                    eyes[1] = temp;
+                                    var temp = eyeObjects[0];
+                                    eyeObjects[0] = eyeObjects[1];
+                                    eyeObjects[1] = temp;
                                 }
-                                int betweeneLength = eyes[1].X - eyes[0].X;
-                                int lefteyebrowpoint = eyes[0].X;//
-                                int righteyebrowpoint = eyes[0].X + betweeneLength + eyes[1].Width;//
+                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
+                                int lefteyebrowpoint = eyeObjects[0].X;//
+                                int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
                                 int xxx = (int)((1.5 / 8.0) * betweeneLength);
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3 * betweeneLength);
 
-                                ImageFrame.Draw(facecount.rect, new Bgr(Color.Red), 2);
-                                ImageFrame.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
-                                greyimage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyes[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
-                                // CropFrame = greyimage.Copy();
+                                imageFrame.Draw(facecount.rect, new Bgr(Color.Red), 2);
+                                imageFrame.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                                greyImage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
+                                //CropFrame = greyImage.Copy();
                                 //pic.Add(CropFrame);
 
                                 //get bigger face in frame
-                                cropimage = greyimage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
                                 if (!cropimage.Equals(darkimage))
                                 {
                                     cropimage._EqualizeHist();
                                     //CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
-                                    //cropimage = Eigen_Recog.convertLBP(cropimage,1);
+                                    //cropimage = eigenRecog.convertLBP(cropimage,1);
                                     imageBox7.Image = cropimage;     //line 2
 
 
@@ -377,7 +357,7 @@ namespace EMGUCV
                                     mydb.InsertImageTraining(textBox1.Text, tempPath);
 
                                     //File.Delete(tempPath);
-                                    Eigen_Recog.reloadData();
+                                    eigenRecog.reloadData();
                                     //Fish_Recog.reloadData();
                                 }
                                 
@@ -391,30 +371,6 @@ namespace EMGUCV
             {
                // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }            
-        }              
-        
-        private void trackBar1_Scroll(object sender, EventArgs e)
-        {
-            //Eigen_Recog.Set_Eigen_Threshold = trackBar1.Value;
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-           
-            
-        }
-       
-        private void button4_Click(object sender, EventArgs e)
-        {
-           
-        }
-
-        private void button6_Click(object sender, EventArgs e)
-        {
-            //Image<Gray, byte>[] dif = t.getDiffFace();
-            //imageBox9.Image = dif[0];
-        }
-       
-                        
+        }                                    
     }
 }

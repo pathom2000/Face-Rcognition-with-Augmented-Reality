@@ -62,25 +62,7 @@ namespace EMGUCV
         {
             get { return _IsTrained; }
         }
-        /*public Image<Gray, float> getAVGImage()
-        {
-            Image<Gray, float> blankImage = new Image<Gray, float>(200, 200);
-            try
-            {
-                if (_IsTrained)
-                {
-                    Image<Gray, float> retImage = recognizer.AverageImage;
-
-                    return retImage;
-                }
-                else return blankImage;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return blankImage;
-            }
-        }*/
+        
         public Image<Gray, byte>[] getTrainingImage()
         {
             if (_IsTrained)
@@ -92,11 +74,7 @@ namespace EMGUCV
                 return null;
             }
         }
-        /// <summary>
-        /// Recognise a Grayscale Image using the trained Eigen Recogniser
-        /// </summary>
-        /// <param name="Input_image"></param>
-        /// <returns></returns>
+        
         public void reloadData()
         {
             _IsTrained = LoadTrainingData();
@@ -111,6 +89,7 @@ namespace EMGUCV
                 return null;
             }
         }
+       
         public string Recognise(Image<Gray, byte> Input_image, int Eigen_Thresh = -1)
         {
             try
@@ -131,7 +110,7 @@ namespace EMGUCV
                     {
                         Eigen_label = ER.Label;
                         Eigen_Distance = ER.Distance;
-
+                        
                         if (Eigen_Thresh > -1)
                         {
                             Eigen_threshold = Eigen_Thresh;
@@ -197,33 +176,7 @@ namespace EMGUCV
             GC.Collect();
         }
         
-        Bitmap NormalizeLbpMatrix(double[,] Mat, Bitmap lbp, double max)
-        {
-            int NumRow = lbp.Height;
-            int numCol = lbp.Width;
-            for (int i = 0; i < NumRow; i++)
-            {
-                for (int j = 0; j < numCol; j++)
-                {
-                    // see the Normalization process of dividing pixel by max value and multiplying with 255
-                    double d = Mat[j, i] / max;
-                    int v = (int)(d * 255);
-                    Color c = Color.FromArgb(v, v, v);
-                    lbp.SetPixel(j, i, c);
-                }
-            }
-            return lbp;
-        }
-        double Bin2Dec(List<int> bin)
-        {
-            double d = 0;
-
-            for (int i = 0; i < bin.Count; i++)
-            {
-                d += bin[i] * Math.Pow(2, i);
-            }
-            return d;
-        }
+        
         private bool LoadTrainingData()
         {
             mydb = new DBConn();
