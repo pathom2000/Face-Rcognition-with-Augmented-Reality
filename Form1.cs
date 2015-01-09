@@ -30,7 +30,11 @@ namespace EMGUCV
         Capture capture;
         HaarCascade face;
 
-        List<string> recogResult;
+        List<string> recogNameResult;
+        List<double> recogDistanceResult;
+        double meanDistance;
+
+        int maxImageCount = 21;
         Classifier_Train eigenRecog = new Classifier_Train();  
         CascadeClassifier eyeWithGlass;
         CascadeClassifier nose;
@@ -50,6 +54,7 @@ namespace EMGUCV
 
         string name = "Processing...";
         string tempPath = "E:/Images/tmp.jpg";
+        string logFolder = "E:/Images/log/";
         string logName;
 
         public Form1()
@@ -63,7 +68,8 @@ namespace EMGUCV
 
             mydb = new DBConn();
 
-            recogResult = new List<string>();
+            recogNameResult = new List<string>();
+            recogDistanceResult = new List<double>();
             minEye = new Size(10, 10);
             maxEye = new Size(225, 225);
             minNose = new Size(10, 10);
@@ -101,12 +107,12 @@ namespace EMGUCV
             Image<Gray, byte> learnImage = new Image<Gray, byte>(ROIwidth,ROIheight);           
 
             if(imageFrame != null){
-                string matchedname;
+                string matchedResult;
                 Image<Gray, byte> greyImage = imageFrame.Convert<Gray, byte>();
                 Image<Gray, byte> imageroi;
-                greyImage._EqualizeHist();
                 
-                
+                greyImage._SmoothGaussian(5);
+                //greyImage._EqualizeHist();
                 stopWatch.Start();
                 var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
                 
@@ -179,8 +185,9 @@ namespace EMGUCV
                     else //not see eye in frame
                     {
                         name = "Processing...";
-                        learningTag = !learningTag;
-                        recogResult.Clear();
+                        learningTag = true;
+                        recogNameResult.Clear();
+                        recogDistanceResult.Clear();
                     }
                     
                     
@@ -196,7 +203,7 @@ namespace EMGUCV
                             var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
                             if (eyeObjects.Length == 2)
                             {
-                                Console.WriteLine("eye");
+                                Console.WriteLine("eye detected...");
                                 if (eyeObjects[0].X > eyeObjects[1].X)
                                 {
                                     var temp = eyeObjects[0];
@@ -211,7 +218,7 @@ namespace EMGUCV
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3*betweeneLength);
 
-                                Console.WriteLine((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx)+" "+ faceheight);
+                                Console.WriteLine("position:"+((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx))+" "+ faceheight);
                                 imageFrame.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
                                 imageroi = imageFrame.Copy().Convert<Gray, byte>();
                                 imageFrame.ROI = new Rectangle();
@@ -221,16 +228,17 @@ namespace EMGUCV
                                     imageroi._EqualizeHist();
 
                                     //find the most relative face
-                                    if (recogResult.Count == 21)
+                                    if (recogNameResult.Count == maxImageCount)
                                     {
+                                        Console.WriteLine("Processing...");
                                         int max = 0;
                                         string mostFace = "";
-                                        foreach (string value in recogResult.Distinct())
+                                        foreach (string value in recogNameResult.Distinct())
                                         {
-                                            System.Diagnostics.Debug.WriteLine("\"{0}\" occurs {1} time(s).", value, recogResult.Count(v => v == value));
-                                            if (recogResult.Count(v => v == value) > max)
+                                            Console.WriteLine("\"{0}\" occurs {1} time(s).\n", value, recogNameResult.Count(v => v == value));
+                                            if (recogNameResult.Count(v => v == value) > max)
                                             {
-                                                max = recogResult.Count(v => v == value);
+                                                max = recogNameResult.Count(v => v == value);
                                                 mostFace = value;
                                             }
                                         }
@@ -238,27 +246,44 @@ namespace EMGUCV
                                         if (learningTag)
                                         {
                                             learnImage = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-                                            learnImage.Save(tempPath);
-                                            mydb.InsertImageTraining(name, tempPath);
-                                            if (mydb.getSpecifyImageCount(name) > 10)
+                                            matchedResult = eigenRecog.Recognise(learnImage);
+                                            string[] matchedData = matchedResult.Split(' ');
+                                            if (Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold)
                                             {
-                                                mydb.DeleteOldestImage(name);
+                                                meanDistance = recogDistanceResult.Sum() / maxImageCount;
+                                                if (meanDistance <= eigenRecog.getRecognizeTreshold)
+                                                {
+                                                    
+                                                    learnImage.Save(tempPath);
+                                                    mydb.InsertImageTraining(name, tempPath);
+                                                    if (mydb.getSpecifyImageCount(name) > 10)
+                                                    {
+                                                        mydb.DeleteOldestImage(name);
+                                                    }
+                                                    eigenRecog.reloadData();
+                                                    learningTag = !learningTag;
+                                                    Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine("Distance:" + meanDistance + "\n");
+                                                } 
                                             }
-                                            eigenRecog.reloadData();
-                                            learningTag = !learningTag;
-                                            Console.WriteLine("Learning " + name);
+                                            
                                         }
                                         
                                     }
                                     else
                                     {
-                                        Console.WriteLine("recog");
-                                        matchedname = eigenRecog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
-
-                                        if (!matchedname.Equals("UnknownNull") && !matchedname.Equals("UnknownFace"))
-                                        {
-                                            Console.WriteLine(matchedname);
-                                            recogResult.Add(matchedname);
+                                        Console.WriteLine("recognizing...");
+                                        matchedResult = eigenRecog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
+                                        Console.WriteLine("Result:"+ matchedResult+"\n");
+                                        string[] matchedData = matchedResult.Split(' ');
+                                        if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
+                                        {                                            
+                                            //Console.WriteLine(matchedData[0] +" "+ matchedData[1]);
+                                            recogNameResult.Add(matchedData[0]);
+                                            recogDistanceResult.Add(Double.Parse(matchedData[1]));
                                         }
 
                                     }
@@ -288,12 +313,12 @@ namespace EMGUCV
                         ts.TotalMilliseconds * 10000);
                     textBox2.Text = elapsedTime;
                     listView1.Items.Add(elapsedTime);
-                    File.AppendAllText(@"E:\Images\log\" + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
+                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
                     stopWatch.Reset();
                     CvInvoke.cvSmooth(imageFrame, imageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                    
                 //imageBox1.Image = greyImage;//line 2
-               imageBox1.Image = imageFrame;//line 2
+                imageBox1.Image = imageFrame;//line 2
             }
             
             

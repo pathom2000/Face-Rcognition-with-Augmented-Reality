@@ -38,7 +38,8 @@ namespace EMGUCV
         float Eigen_Distance = 0;
         string Eigen_label;
         int Eigen_threshold = 0;
-
+        int recognizeTreshold = 10000;
+        int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;
         bool _IsTrained = false;
@@ -62,7 +63,10 @@ namespace EMGUCV
         {
             get { return _IsTrained; }
         }
-        
+        public int getRecognizeTreshold
+        {
+            get { return recognizeTreshold; }
+        }
         public Image<Gray, byte>[] getTrainingImage()
         {
             if (_IsTrained)
@@ -97,7 +101,7 @@ namespace EMGUCV
                 
                 if (_IsTrained)
                 {
-                    recognizer.EigenDistanceThreshold =10000;
+                    recognizer.EigenDistanceThreshold = recognizeTreshold;
                     EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
                     
                     if (ER == null)
@@ -117,9 +121,9 @@ namespace EMGUCV
                         }
                         if (Eigen_Distance > Eigen_threshold)
                         {
-                            return Eigen_label;
+                            return Eigen_label + " " + Eigen_Distance.ToString();
                         }
-                            // + " " + Eigen_Distance.ToString()
+                            // 
                         else
                         {
                             return "UnknownFace";
@@ -191,7 +195,7 @@ namespace EMGUCV
                         //set round and ...
                         termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
                          //Eigen face recognizer
-                        recognizer = new EigenObjectRecognizer(trainingImages,allname.ToArray(),11000,ref termCrit);
+                        recognizer = new EigenObjectRecognizer(trainingImages, allname.ToArray(), maxRecognizeTreshold, ref termCrit);
                         return true;
                     }
                     else
