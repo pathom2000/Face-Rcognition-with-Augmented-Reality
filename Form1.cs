@@ -5,7 +5,8 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Timers;
+
 using System.Windows.Forms;
 using System.Diagnostics;
 using Emgu.CV;
@@ -17,51 +18,55 @@ using Emgu.CV.Features2D;
 using System.IO;
 using System.Collections;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace EMGUCV
 {
     
     public partial class Form1 : Form
     {
-          
-        DBConn mydb;
-        MCvFont font;        
-        Stopwatch stopWatch = new Stopwatch();
-        Capture capture;
-        HaarCascade face;
+        private Thread t;
+        private DBConn mydb;
+        private MCvFont font;
+        private Stopwatch stopWatch = new Stopwatch();
+        private Capture capture;
+        private HaarCascade face;
+        private HaarCascade calcface;
 
-        List<string> recogNameResult;
-        List<double> recogDistanceResult;
-        double meanDistance;
+        private List<string> recogNameResult;
+        private List<double> recogDistanceResult;
+        private double meanDistance;
 
-        int maxImageCount = 21;
-        Classifier_Train eigenRecog = new Classifier_Train();  
-        CascadeClassifier eyeWithGlass;
-        CascadeClassifier nose;
-        CascadeClassifier mouth;
-        Size minEye;
-        Size maxEye;
-        Size minNose;
-        Size maxNose;
-        Size minMouth;
-        Size maxMouth;
-        Point[] coord;
-        double ROImargin = 1.00;
-        double widthScale = 1.00;
-        int ROIwidth = 140;
-        int ROIheight = 175;
-        bool learningTag = true;
+        private int maxImageCount = 21;
+        private Classifier_Train eigenRecog = new Classifier_Train();
+        private CascadeClassifier eyeWithGlass;
+        private CascadeClassifier nose;
+        private CascadeClassifier mouth;
+        private Size minEye;
+        private Size maxEye;
+        private Size minNose;
+        private Size maxNose;
+        private Size minMouth;
+        private Size maxMouth;
+        private Point[] coord;
+        private double ROImargin = 1.00;
+        private double widthScale = 1.00;
+        private int ROIwidth = 140;
+        private int ROIheight = 175;
+        private bool learningTag = true;
+        private System.Timers.Timer timer;
 
-        string name = "Processing...";
-        string tempPath = "E:/Images/tmp.jpg";
-        string logFolder = "E:/Images/log/";
-        string logName;
+        private string name = "Processing...";
+        private string tempPath = "E:/Images/tmp.jpg";
+        private string logFolder = "E:/Images/log/";
+        private string logName;
 
         public Form1()
         {
             InitializeComponent();
-
+            
             face = new HaarCascade("haarcascade_frontalface_default.xml");
+            calcface = new HaarCascade("haarcascade_frontalface_default.xml");
             eyeWithGlass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
             nose = new CascadeClassifier("haarcascade_mcs_nose.xml");
             mouth = new CascadeClassifier("haarcascade_mcs_mouth.xml");
@@ -87,13 +92,88 @@ namespace EMGUCV
         private void button1_Click(object sender, EventArgs e)
         {            
                 capture = new Capture();
-                capture.QueryFrame();                
+                Console.WriteLine("resolution:"+capture.Height +","+capture.Width);
+                //Form1.CheckForIllegalCrossThreadCalls = false;
+                t = new Thread(delegate()
+                {
+                    timer = new System.Timers.Timer(TimeSpan.FromSeconds(5).TotalMilliseconds); // set the time
+
+                    timer.AutoReset = true;
+
+                    timer.Elapsed += new System.Timers.ElapsedEventHandler(updateDistanceTreshold);
+
+                    timer.Start();
+                    
+                });
+                t.Start();
+                
                 Application.Idle += new EventHandler(ProcessFrame);
-                                               
+                button1.Enabled = false;
+                button2.Enabled = false;  
         }
+        
+        private void updateDistanceTreshold(object sender, EventArgs e)
+        {
+
+            Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt"));
+            
+            Image<Bgr, byte> calcFrame = capture.QueryFrame();
+            if (calcFrame != null){
+                Image<Gray, byte> calcGrayFrame = calcFrame.Convert<Gray,byte>();
+                var calcfaces = calcface.Detect(calcGrayFrame, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
+                if (calcfaces.Length != 0)
+                {
+                    calcGrayFrame.ROI = new Rectangle(new Point(calcfaces[0].rect.X, calcfaces[0].rect.Y), new Size(calcfaces[0].rect.Width, calcfaces[0].rect.Height));
+                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
+                    Int32 sumIntensity = 0;
+                    for (int i = 0; i < calcGrayFrame.Width; i++)
+                    {
+                        for (int j = 0; j < calcGrayFrame.Height; j++)
+                        {
+                            sumIntensity += calcGrayFrame.Data[j, i, 0];
+                        }
+                    }
+                    int avgIntensity = sumIntensity / area;
+                    Console.WriteLine("------------------Intensity:" + avgIntensity);
+                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                }
+                else
+                {
+                    Console.WriteLine("------------------Fail");
+                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
+                    Int32 sumIntensity = 0;
+                    for (int i = 0; i < calcGrayFrame.Width; i++)
+                    {
+                        for (int j = 0; j < calcGrayFrame.Height; j++)
+                        {
+                            sumIntensity += calcGrayFrame.Data[j, i, 0];
+                        }
+                    }
+                    int avgIntensity = sumIntensity / area;
+                    Console.WriteLine("------------------Intensity:" + avgIntensity);
+                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                }
+                
+            }
+
+        }            
         private void button2_Click(object sender, EventArgs e)
         {
-            TrainFrame();
+            if(t != null){
+
+                Console.WriteLine(t.ThreadState);
+                t.Abort();
+                timer.Stop();
+                timer.Close();
+              
+            }
+            
+            Application.Idle -= ProcessFrame;
+            ReleaseData();
+            FormTrain frmTrain = new FormTrain(this);
+            frmTrain.Show();
+            button1.Enabled = true;
+            this.Hide();
         }    
         
         private void ReleaseData()
@@ -256,7 +336,7 @@ namespace EMGUCV
                                                     
                                                     learnImage.Save(tempPath);
                                                     mydb.InsertImageTraining(name, tempPath);
-                                                    if (mydb.getSpecifyImageCount(name) > 10)
+                                                    if (mydb.getSpecifyImageCount(name) > 3)
                                                     {
                                                         mydb.DeleteOldestImage(name);
                                                     }
@@ -278,6 +358,7 @@ namespace EMGUCV
                                         Console.WriteLine("recognizing...");
                                         matchedResult = eigenRecog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
                                         Console.WriteLine("Result:"+ matchedResult+"\n");
+                                        File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
                                         {                                            
@@ -312,8 +393,8 @@ namespace EMGUCV
 
                         ts.TotalMilliseconds * 10000);
                     textBox2.Text = elapsedTime;
-                    listView1.Items.Add(elapsedTime);
-                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
+                    //listView1.Items.Add(elapsedTime);
+                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
                     stopWatch.Reset();
                     CvInvoke.cvSmooth(imageFrame, imageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                    
@@ -324,78 +405,6 @@ namespace EMGUCV
             
         }
         
-        private void TrainFrame()
-        {
-            try
-            {
-                
-                Image<Bgr, Byte> imageFrame = capture.QueryFrame();  //line 1
-                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-
-                //ArrayList pic = new ArrayList();
-                if (imageFrame != null)
-
-                {
-                    Image<Gray, byte> greyImage = imageFrame.Convert<Gray, byte>();
-
-
-                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
-                    if (faces.Length > 0)
-                    {
-                        foreach (var facecount in faces)
-                        {
-                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                            if (eyeObjects.Length == 2)
-                            {
-                                Console.WriteLine("eye");
-                                if (eyeObjects[0].X > eyeObjects[1].X)
-                                {
-                                    var temp = eyeObjects[0];
-                                    eyeObjects[0] = eyeObjects[1];
-                                    eyeObjects[1] = temp;
-                                }
-                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
-                                int lefteyebrowpoint = eyeObjects[0].X;//
-                                int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
-                                int xxx = (int)((1.5 / 8.0) * betweeneLength);
-                                int neareyebrowpoint = (int)(0.2 * betweeneLength);
-                                int faceheight = (int)(2.3 * betweeneLength);
-
-                                imageFrame.Draw(facecount.rect, new Bgr(Color.Red), 2);
-                                imageFrame.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
-                                greyImage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
-                                //CropFrame = greyImage.Copy();
-                                //pic.Add(CropFrame);
-
-                                //get bigger face in frame
-                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-                                if (!cropimage.Equals(darkimage))
-                                {
-                                    cropimage._EqualizeHist();
-                                    //CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
-                                    //cropimage = eigenRecog.convertLBP(cropimage,1);
-                                    imageBox7.Image = cropimage;     //line 2
-
-
-                                    cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(textBox1.Text, tempPath);
-
-                                    //File.Delete(tempPath);
-                                    eigenRecog.reloadData();
-                                    //Fish_Recog.reloadData();
-                                }
-                                
-                            }
-                            imageBox8.Image = cropimage;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-               // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            }            
-        }                                    
+                                           
     }
 }

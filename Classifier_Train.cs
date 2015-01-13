@@ -38,7 +38,7 @@ namespace EMGUCV
         float Eigen_Distance = 0;
         string Eigen_label;
         int Eigen_threshold = 0;
-        int recognizeTreshold = 10000;
+        int recognizeTreshold = 5000;
         int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;
@@ -101,7 +101,7 @@ namespace EMGUCV
                 
                 if (_IsTrained)
                 {
-                    recognizer.EigenDistanceThreshold = recognizeTreshold;
+                    Set_Eigen_Threshold = recognizeTreshold;
                     EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
                     
                     if (ER == null)
