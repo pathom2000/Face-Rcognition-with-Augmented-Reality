@@ -86,10 +86,15 @@ namespace EMGUCV
         }
 
         //Insert statement
-        public void InsertImageTraining(string Labelname,string TrainedImagePath)
+        public void InsertImageTraining(string Labelname,string TrainedImagePath,bool IsOriginal)
         {
-
-            string query = "INSERT INTO faceimage (facelabel, image) VALUES('" + Labelname + "', LOAD_FILE('" + TrainedImagePath + "'))";
+            char originalFlag;
+            if(IsOriginal){
+                originalFlag = 'Y';
+            }else{
+                originalFlag = 'N';
+            }
+            string query = "INSERT INTO faceimage (facelabel, image,original) VALUES('" + Labelname + "', LOAD_FILE('" + TrainedImagePath + "'),'" + originalFlag + "')";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -134,7 +139,7 @@ namespace EMGUCV
         public void DeleteOldestImage(string name)
         {
 
-            string query = "DELETE from faceimage WHERE facelabel ='"+name+"' ORDER BY timestamp LIMIT 1";
+            string query = "DELETE from faceimage WHERE facelabel ='"+name+"' AND original != 'Y' ORDER BY timestamp LIMIT 1";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -152,7 +157,7 @@ namespace EMGUCV
 
         public Int32 getSpecifyImageCount(string name)
         {
-            string query = "select count(*) from faceimage where facelabel = '"+name+"'";
+            string query = "select count(*) from faceimage where facelabel = '" + name + "' AND original != 'Y'";
             int retval;
             Debug.WriteLine(query);
             //open connection
