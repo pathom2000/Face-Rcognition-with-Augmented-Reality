@@ -37,6 +37,23 @@ namespace EMGUCV
         private List<double> recogDistanceResult;
         private double meanDistance;
 
+        private Image<Bgr, Byte> imageFrame;
+        private Image<Bgr, Byte> drawFrame;
+
+        private Point facePosition;
+        private Rectangle faceRectangle;
+        private Size faceRectangleSize;
+
+        private Point realFacePosition;
+        private Rectangle realfaceRectangle;
+        private Size realfaceRectangleSize;
+
+        private Image<Gray, byte> imageroi;
+        private Image<Gray, byte> learnImage;
+        private string matchedResult;
+
+        private Size ROIFaceSize = new Size(140,175);
+
         private int maxImageCount = 21;
         private Classifier_Train eigenRecog = new Classifier_Train();
         private CascadeClassifier eyeWithGlass;
@@ -108,6 +125,8 @@ namespace EMGUCV
                 t.Start();
                 
                 Application.Idle += new EventHandler(ProcessFrame);
+                Application.Idle += new EventHandler(runningFrame);
+                //Application.Idle += new EventHandler(runningCropFrame);
                 button1.Enabled = false;
                 button2.Enabled = false;  
         }
@@ -169,6 +188,7 @@ namespace EMGUCV
             }
             
             Application.Idle -= ProcessFrame;
+            Application.Idle -= runningFrame;
             ReleaseData();
             FormTrain frmTrain = new FormTrain(this);
             frmTrain.Show();
@@ -181,17 +201,40 @@ namespace EMGUCV
             if (capture != null)
                 capture.Dispose();
         }
-        private void ProcessFrame(object sender, EventArgs arg)
+        private void runningFrame(object sender, EventArgs arg)
         {
-            Image<Bgr, Byte> imageFrame = capture.QueryFrame();
-            Image<Gray, byte> learnImage = new Image<Gray, byte>(ROIwidth,ROIheight);           
-
-            if(imageFrame != null){
-                string matchedResult;
-                Image<Gray, byte> greyImage = imageFrame.Convert<Gray, byte>();
-                Image<Gray, byte> imageroi;
+            imageFrame = capture.QueryFrame();
+            
+            if (imageFrame != null)
+            {
+                drawFrame = imageFrame.Copy();
+                imageBox1.Image = drawFrame;
+                if (!realfaceRectangle.IsEmpty)
+                {
+                    drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
+                    drawFrame.Draw(faceRectangle, new Bgr(Color.LawnGreen), 2);
+                    drawFrame.Draw(name, ref font, facePosition, new Bgr(Color.Red));
+                    
+                }
+            }
+        }
+        private void runningCropFrame(object sender, EventArgs arg)
+        {
+            
+            if (imageroi != null)
+            {
+                imageBox2.Image = imageroi;
                 
-                greyImage._SmoothGaussian(5);
+            }
+        }
+        private void ProcessFrame(object sender, EventArgs arg)
+        {                   
+            if(imageFrame != null){
+                
+                Image<Gray, byte> greyImage = imageFrame.Copy().Convert<Gray, byte>();
+                
+                
+                greyImage._SmoothGaussian(3);
                 //greyImage._EqualizeHist();
                 stopWatch.Start();
                 var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
@@ -199,7 +242,9 @@ namespace EMGUCV
                 if (faces.Length == 0)
                 {
                     var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                    if(eyeObjects.Length == 2){
+                    if(eyeObjects.Length == 2)
+                    {
+                        #region comment
                         /*Console.WriteLine("helper");
                         if(eyeObjects[0].X > eyeObjects[1].X)
                         {
@@ -261,16 +306,19 @@ namespace EMGUCV
                         //imageFrame.Draw(new CircleF(new PointF(eyeObjects[0].X + (eyeObjects[0].Width / 2), eyeObjects[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
                         //imageFrame.Draw(new CircleF(new PointF(eyeObjects[1].X + (eyeObjects[1].Width / 2), eyeObjects[0].Y - forheadpeakpeak), 1), new Bgr(Color.LimeGreen), 2);
                         */
+                        #endregion
                     }
                     else //not see eye in frame
                     {
                         name = "Processing...";
                         learningTag = true;
+                        faceRectangle = Rectangle.Empty;
+                        realfaceRectangle = Rectangle.Empty;
                         recogNameResult.Clear();
                         recogDistanceResult.Clear();
+                        Console.WriteLine("Clear");
                     }
-                    
-                    
+                       
                 }
                 else 
                 { 
@@ -278,11 +326,15 @@ namespace EMGUCV
                     {
                         try
                         {
-
-                            imageFrame.Draw(facecount.rect.Width + " " + facecount.rect.Height, ref font, new Point(facecount.rect.X - 25, facecount.rect.Y - 25), new Bgr(Color.Red));
+                            facePosition = new Point(facecount.rect.X, facecount.rect.Y);
+                            faceRectangleSize = new Size(facecount.rect.Width,facecount.rect.Height);
+                            faceRectangle = new Rectangle(facePosition, faceRectangleSize);
+                            greyImage.ROI = faceRectangle;
                             var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                            greyImage.ROI = System.Drawing.Rectangle.Empty;
                             if (eyeObjects.Length == 2)
                             {
+
                                 Console.WriteLine("eye detected...");
                                 if (eyeObjects[0].X > eyeObjects[1].X)
                                 {
@@ -298,15 +350,22 @@ namespace EMGUCV
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3*betweeneLength);
 
-                                Console.WriteLine("position:"+((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx))+" "+ faceheight);
-                                imageFrame.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
-                                imageroi = imageFrame.Copy().Convert<Gray, byte>();
-                                imageFrame.ROI = new Rectangle();
-                                imageFrame.Draw(new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight)), new Bgr(Color.SpringGreen), 2);
+                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - xxx, facePosition.Y+ eyeObjects[0].Y - neareyebrowpoint);
+                                realfaceRectangleSize = new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight);
+                                realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
+
+
+                                greyImage.ROI = realfaceRectangle;
+                                imageroi = greyImage.Copy();
+                                greyImage.ROI = new Rectangle();
+
+                                
                                 if (eigenRecog.IsTrained)
                                 {
+                                    
                                     imageroi._EqualizeHist();
-
+                                    imageroi = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                    
                                     //find the most relative face
                                     if (recogNameResult.Count == maxImageCount)
                                     {
@@ -323,45 +382,44 @@ namespace EMGUCV
                                             }
                                         }
                                         name = mostFace;
-                                        if (learningTag)
+                                        if (learningTag && !(name.Equals("UnknownNull") || name.Equals("UnknownFace")))
                                         {
-                                            learnImage = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                            learnImage = imageroi;
                                             matchedResult = eigenRecog.Recognise(learnImage);
                                             string[] matchedData = matchedResult.Split(' ');
-                                            if (Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold)
+                                            if ((Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
                                             {
                                                 meanDistance = recogDistanceResult.Sum() / maxImageCount;
                                                 if (meanDistance <= eigenRecog.getRecognizeTreshold)
                                                 {
-                                                    
                                                     learnImage.Save(tempPath);
-                                                    mydb.InsertImageTraining(name, tempPath);
+                                                    mydb.InsertImageTraining(name, tempPath, false);
                                                     if (mydb.getSpecifyImageCount(name) > 3)
                                                     {
                                                         mydb.DeleteOldestImage(name);
                                                     }
                                                     eigenRecog.reloadData();
-                                                    learningTag = !learningTag;
+                                                    learningTag = false;
                                                     Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
                                                 }
                                                 else
                                                 {
                                                     Console.WriteLine("Distance:" + meanDistance + "\n");
-                                                } 
+                                                }
                                             }
-                                            
+
                                         }
-                                        
+
                                     }
                                     else
                                     {
                                         Console.WriteLine("recognizing...");
-                                        matchedResult = eigenRecog.Recognise(imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR));
-                                        Console.WriteLine("Result:"+ matchedResult+"\n");
+                                        matchedResult = eigenRecog.Recognise(imageroi);
+                                        Console.WriteLine("Result:" + matchedResult + "\n");
                                         File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
-                                        {                                            
+                                        {
                                             //Console.WriteLine(matchedData[0] +" "+ matchedData[1]);
                                             recogNameResult.Add(matchedData[0]);
                                             recogDistanceResult.Add(Double.Parse(matchedData[1]));
@@ -369,11 +427,9 @@ namespace EMGUCV
 
                                     }
 
-                                    imageFrame.Draw(name, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.Red));
+                                    
 
                                 }
-
-                                imageFrame.Draw(new Rectangle((int)(facecount.rect.X * ROImargin), facecount.rect.Y, (int)(facecount.rect.Width * widthScale), (int)(facecount.rect.Height * 1.1)), new Bgr(Color.LawnGreen), 2);
 
                             }
                         }
@@ -396,13 +452,17 @@ namespace EMGUCV
                     //listView1.Items.Add(elapsedTime);
                     //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
                     stopWatch.Reset();
-                    CvInvoke.cvSmooth(imageFrame, imageFrame, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
                    
-                //imageBox1.Image = greyImage;//line 2
-                imageBox1.Image = imageFrame;//line 2
+                   
+                
             }
             
             
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
         
                                            

@@ -37,8 +37,10 @@ namespace EMGUCV
         private string tempPath = "E:/Images/tmp.jpg";
         private DBConn mydb;
         private Classifier_Train eigenRecog;
-        private MCvFont font;  
-
+        private MCvFont font;
+        private String showedStatus = "...";
+        private Point facePosition;
+        Image<Bgr, byte> initialImage;
         public FormTrain(Form1 frm1)
         {
             InitializeComponent();
@@ -50,8 +52,8 @@ namespace EMGUCV
             mydb = new DBConn();
             minEye = new Size(10, 10);
             maxEye = new Size(225, 225);
-            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);    
-
+            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
+            
             captureT = new Capture();
             Application.Idle += new EventHandler(runningCamera);
             
@@ -76,7 +78,32 @@ namespace EMGUCV
         private void runningCamera(object sender, EventArgs e)
         {
             imageFrameT = captureT.QueryFrame();
-            imageBox1.Image = imageFrameT;
+            
+            if (imageFrameT != null)
+            {
+                
+                if(facePosition != null){
+                    if (showedStatus.Equals("..."))
+                    {
+                        Size dialogSize = new Size(300, 100);
+                        Rectangle drawArea = new Rectangle(facePosition, dialogSize);
+                        initialImage = imageFrameT.Copy();
+                        Image<Bgr, Byte> opacityOverlay = new Image<Bgr, byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
+                        initialImage.ROI = drawArea;
+                        opacityOverlay.CopyTo(initialImage);
+                        initialImage.ROI = System.Drawing.Rectangle.Empty;
+                        double alpha = 0.8;
+                        double beta = 1 - alpha;
+                        double gamma = 0;
+                        initialImage.Draw(drawArea, new Bgr(Color.LawnGreen), 2);
+                        initialImage = imageFrameT.AddWeighted(initialImage, alpha, beta, gamma);
+
+                    }
+                }
+
+                imageBox1.Image = initialImage;
+            }
+            
         }
        
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -112,6 +139,7 @@ namespace EMGUCV
                     {
                         foreach (var facecount in faces)
                         {
+                            facePosition = new Point(facecount.rect.X, facecount.rect.Y);
                             var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
                             if (eyeObjects.Length == 2)
                             {
@@ -146,7 +174,7 @@ namespace EMGUCV
 
 
                                     cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(textBox1.Text, tempPath);
+                                    mydb.InsertImageTraining(textBox1.Text, tempPath,true);
 
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();

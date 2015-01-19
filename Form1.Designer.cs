@@ -33,7 +33,9 @@
             this.button2 = new System.Windows.Forms.Button();
             this.imageBox1 = new Emgu.CV.UI.ImageBox();
             this.textBox2 = new System.Windows.Forms.TextBox();
+            this.imageBox2 = new Emgu.CV.UI.ImageBox();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.imageBox2)).BeginInit();
             this.SuspendLayout();
             // 
             // button1
@@ -72,11 +74,21 @@
             this.textBox2.Size = new System.Drawing.Size(150, 20);
             this.textBox2.TabIndex = 18;
             // 
+            // imageBox2
+            // 
+            this.imageBox2.BackColor = System.Drawing.Color.White;
+            this.imageBox2.Location = new System.Drawing.Point(670, 12);
+            this.imageBox2.Name = "imageBox2";
+            this.imageBox2.Size = new System.Drawing.Size(140, 175);
+            this.imageBox2.TabIndex = 19;
+            this.imageBox2.TabStop = false;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(759, 554);
+            this.ClientSize = new System.Drawing.Size(828, 554);
+            this.Controls.Add(this.imageBox2);
             this.Controls.Add(this.textBox2);
             this.Controls.Add(this.imageBox1);
             this.Controls.Add(this.button2);
@@ -84,6 +96,7 @@
             this.Name = "Form1";
             this.Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.imageBox2)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -95,6 +108,7 @@
         private System.Windows.Forms.Button button2;
         private Emgu.CV.UI.ImageBox imageBox1;
         private System.Windows.Forms.TextBox textBox2;
+        private Emgu.CV.UI.ImageBox imageBox2;
     }
 }
 
