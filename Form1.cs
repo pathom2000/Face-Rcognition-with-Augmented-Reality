@@ -126,7 +126,7 @@ namespace EMGUCV
                 
                 Application.Idle += new EventHandler(ProcessFrame);
                 Application.Idle += new EventHandler(runningFrame);
-                //Application.Idle += new EventHandler(runningCropFrame);
+                Application.Idle += new EventHandler(runningCropFrame);
                 button1.Enabled = false;
                 button2.Enabled = false;  
         }
@@ -460,10 +460,27 @@ namespace EMGUCV
             
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void button3_Click(object sender, EventArgs e)
         {
+            if (t != null)
+            {
 
+                Console.WriteLine(t.ThreadState);
+                t.Abort();
+                timer.Stop();
+                timer.Close();
+
+            }
+
+            Application.Idle -= ProcessFrame;
+            Application.Idle -= runningFrame;
+            ReleaseData();
+            FormManualTrain frmManTrain = new FormManualTrain(this);
+            frmManTrain.Show();
+            button1.Enabled = true;
+            this.Hide();
         }
+
         
                                            
     }
