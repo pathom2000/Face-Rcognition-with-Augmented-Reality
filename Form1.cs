@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -78,6 +78,11 @@ namespace EMGUCV
         private string logFolder = "E:/Images/log/";
         private string logName;
 
+        private String showedStatus = "...";
+        private Size frameSize = new Size(400, 400);
+        private Point framePoint = new Point(30, 30);
+        Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
+
         public Form1()
         {
             InitializeComponent();
@@ -103,7 +108,8 @@ namespace EMGUCV
             //log record
             DateTime now = DateTime.Now;
             logName = now.ToString();
-            logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");      
+            logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");
+
         }
      
         private void button1_Click(object sender, EventArgs e)
@@ -127,6 +133,7 @@ namespace EMGUCV
                 Application.Idle += new EventHandler(ProcessFrame);
                 Application.Idle += new EventHandler(runningFrame);
                 Application.Idle += new EventHandler(runningCropFrame);
+                
                 button1.Enabled = false;
                 button2.Enabled = false;  
         }
@@ -154,7 +161,7 @@ namespace EMGUCV
                     }
                     int avgIntensity = sumIntensity / area;
                     Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
                 }
                 else
                 {
@@ -170,7 +177,7 @@ namespace EMGUCV
                     }
                     int avgIntensity = sumIntensity / area;
                     Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
                 }
                 
             }
@@ -208,16 +215,59 @@ namespace EMGUCV
             if (imageFrame != null)
             {
                 drawFrame = imageFrame.Copy();
-                imageBox1.Image = drawFrame;
+                
                 if (!realfaceRectangle.IsEmpty)
                 {
+                    ////*********************************AR**********************************************
+                    //if (name != "Processing...")      ////////////////For Project
+                    if (showedStatus.Equals("..."))     ////////////////For Debug
+                    {
+                        //runAR(name);
+                        
+                    }    
+                
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
                     drawFrame.Draw(faceRectangle, new Bgr(Color.LawnGreen), 2);
                     drawFrame.Draw(name, ref font, facePosition, new Bgr(Color.Red));
-                    
+                    runAR();
                 }
+                imageBox1.Image = drawFrame;
+                
             }
         }
+
+        private void runAR()
+        {
+            Rectangle drawArea = new Rectangle(framePoint, frameSize);
+            Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
+            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
+            drawFrame.ROI = drawArea;
+            opacityOverlay.CopyTo(drawFrame);
+            drawFrame.ROI = System.Drawing.Rectangle.Empty;
+            double alpha = 0.7;
+            double beta = 1 - alpha;
+            double gamma = 0;
+            drawFrame.Draw(drawArea, new Bgr(Color.Black), 2);
+            drawFrame = imageFrame.AddWeighted(drawFrame, alpha, beta, gamma);
+            ////***********FONT***********
+            MCvFont f = new MCvFont(Emgu.CV.CvEnum.FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1, 1);
+            ////***********TEXT***********
+            if(name.Length <= 15){
+                drawFrame.Draw(name, ref f, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
+            }
+            else
+            {
+                //////????????????????????????
+            }
+            ////***********Picture***********
+            DBConn getImg = new DBConn();
+            imgAR = getImg.getResultImage(name);
+            Image<Bgr, Byte> imageSrc = imgAR.Convert<Bgr,byte>();
+            drawFrame.ROI = drawArea2;
+            CvInvoke.cvCopy(imageSrc, drawFrame, IntPtr.Zero);
+            drawFrame.ROI = Rectangle.Empty;
+        }
+
         private void runningCropFrame(object sender, EventArgs arg)
         {
             
