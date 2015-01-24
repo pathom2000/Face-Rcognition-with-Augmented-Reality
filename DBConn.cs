@@ -232,7 +232,7 @@ namespace EMGUCV
             }
             return null;
         }
-        public Image<Gray, byte> manualQuery1row(string res)
+        public Image<Gray, byte> getResultImage(string res)
         {
 
             Image<Gray, byte> addimage;
@@ -275,6 +275,7 @@ namespace EMGUCV
             }
             return null;
         }
+        
         public Image<Gray, byte>[] getTrainedImageList()
         {
             Image<Gray, byte> addimage;
