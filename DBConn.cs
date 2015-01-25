@@ -12,6 +12,7 @@ using Emgu.Util;
 using Emgu.CV.CvEnum;
 using System.IO;
 using System.Drawing;
+using System.Windows.Forms;
 namespace EMGUCV
 {
     public class DBConn
@@ -21,9 +22,10 @@ namespace EMGUCV
         private string database;
         private string uid;
         private string password;
-
+        private string connectionString;
         public DBConn(){
-            Initialize();
+            
+            Initialize();      
         }
 
         private void Initialize()
@@ -32,11 +34,26 @@ namespace EMGUCV
             database = "facerecog";
             uid = "root";
             password = "root";
-            string connectionString;
+            
             connectionString = "SERVER=" + server + ";" + "DATABASE=" +
             database + ";" + "UID=" + uid + ";" + "PASSWORD=" + password + ";";
 
             connection = new MySqlConnection(connectionString);
+        }
+        public bool IsServerConnected()
+        {
+            using (var connection = new MySqlConnection(connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    return true;
+                }
+                catch (MySqlException)
+                {
+                    return false;
+                }
+            }
         }
         //open connection to database
         private bool OpenConnection()
@@ -86,7 +103,7 @@ namespace EMGUCV
         }
 
         //Insert statement
-        public void InsertImageTraining(string Labelname,string TrainedImagePath,bool IsOriginal)
+        public void InsertImageTraining(int Labelname,string TrainedImagePath,bool IsOriginal)
         {
             char originalFlag;
             if(IsOriginal){
@@ -94,7 +111,7 @@ namespace EMGUCV
             }else{
                 originalFlag = 'N';
             }
-            string query = "INSERT INTO faceimage (facelabel, image,original) VALUES('" + Labelname + "', LOAD_FILE('" + TrainedImagePath + "'),'" + originalFlag + "')";
+            string query = "INSERT INTO faceimage (userid, image,original) VALUES(" + Labelname + ", LOAD_FILE('" + TrainedImagePath + "'),'" + originalFlag + "')";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -109,7 +126,67 @@ namespace EMGUCV
                 this.CloseConnection();
             }
         }
+        public void InsertUserData(string userName, string userSurname, string birthDate,string bloodType)
+        {
 
+            string query = "INSERT INTO userprofile (name,surname,birthday,bloodtype) VALUES('" + userName + "','" + userSurname + "','" + birthDate + "','" + bloodType + "');";
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+        }
+        public Int32 getUserId(string userName, string userSurname, string birthDate, string bloodType)
+        {
+            string query = "select userid from userprofile where name = '" + userName + "' and surname = '" + userSurname + "' and birthday = '" + birthDate + "' and bloodtype = '" + bloodType +"';";
+            int retval;
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                rdr.Read();
+
+                retval = rdr.GetInt32(0);
+
+
+                //close connection
+                this.CloseConnection();
+                return retval;
+            }
+            return 0;
+        }
+        public void DeleteUser(int userID)
+        {
+
+            string query = "DELETE from userprofile WHERE userid ='" + userID + "';";
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+        }
         public Int32 getImageCount()
         {
             string query = "select count(*) from faceimage";
@@ -139,7 +216,7 @@ namespace EMGUCV
         public void DeleteOldestImage(string name)
         {
 
-            string query = "DELETE from faceimage WHERE facelabel ='"+name+"' AND original != 'Y' ORDER BY timestamp LIMIT 1";
+            string query = "DELETE from faceimage WHERE userid ='"+name+"' AND original != 'Y' ORDER BY timestamp LIMIT 1";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -157,7 +234,7 @@ namespace EMGUCV
 
         public Int32 getSpecifyImageCount(string name)
         {
-            string query = "select count(*) from faceimage where facelabel = '" + name + "' AND original != 'Y'";
+            string query = "select count(*) from faceimage where userid = '" + name + "' AND original != 'Y'";
             int retval;
             Debug.WriteLine(query);
             //open connection
@@ -183,7 +260,7 @@ namespace EMGUCV
 
         public List<string> getLabelList()
         {
-            string query = "select facelabel from faceimage";
+            string query = "select userid from faceimage";
             List<string> retval = new List<string>();
             Debug.WriteLine(query);
             //open connection
@@ -206,11 +283,10 @@ namespace EMGUCV
             }
             return null;
         }
-
-        public List<int> getLabelNumList()
+        public string getUserData(string id)//if not have data ret ""
         {
-            string query = "select idserrogate from faceimage";
-            List<int> retval = new List<int>();
+            string query = "select * from userprofile where userid ="+ id;
+            string result = "";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -223,20 +299,33 @@ namespace EMGUCV
 
                 while (rdr.Read())
                 {
-                    int a = rdr.GetInt32(0);
-                    retval.Add(a);
+                    for (int i = 0;i<5 ;i++ )
+                    {
+                        if (i != 4)
+                        {
+                            result += rdr.GetString(i) + " ";
+                        }
+                        else
+                        {
+                            result += rdr.GetString(i);
+                        }
+                        
+                    }
+                    
+                    
                 }
                 //close connection
                 this.CloseConnection();
-                return retval;
+                return result;
             }
             return null;
         }
+        
         public Image<Gray, byte> getResultImage(string res)
         {
 
             Image<Gray, byte> addimage;
-            string query = "select image,length(image) as filesize from faceimage where facelabel = '"+ res+"'";
+            string query = "select image,length(image) as filesize from faceimage where userid = '"+ res+"'";
             Image<Gray, byte> retval = new Image<Gray, byte>(140,175);
             Debug.WriteLine(query);
             byte[] temp;

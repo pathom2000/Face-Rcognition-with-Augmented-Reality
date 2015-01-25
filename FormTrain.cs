@@ -40,7 +40,11 @@ namespace EMGUCV
         private MCvFont font;
         private String showedStatus = "...";
         private Point facePosition;
-        Image<Bgr, byte> initialImage;
+        Image<Bgr, Byte> initialImage;
+        private Size frameSize = new Size(400, 400);
+        private Point framePoint = new Point(30, 30);
+        private Point frameTextPoint = new Point(30, 30);
+        private Int32 newid;
         public FormTrain(Form1 frm1)
         {
             InitializeComponent();
@@ -58,10 +62,18 @@ namespace EMGUCV
             Application.Idle += new EventHandler(runningCamera);
             
         }
-
+        private void setupInterface()
+        {
+            
+        }
         private void button1_Click(object sender, EventArgs e)
         {
-            TrainFrame();
+            mydb.InsertUserData(textBox1.Text,textBox2.Text,textBox3.Text,comboBox1.Text);
+            newid = mydb.getUserId(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
+            if(newid != 0){
+                TrainFrame(newid);
+            }
+            
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -82,26 +94,50 @@ namespace EMGUCV
             if (imageFrameT != null)
             {
                 
-                if(facePosition != null){
+                if(facePosition != null)
+                {
                     if (showedStatus.Equals("..."))
                     {
-                        Size dialogSize = new Size(300, 100);
-                        Rectangle drawArea = new Rectangle(facePosition, dialogSize);
+                        Size dialogSize = frameSize;
+                        Rectangle drawArea = new Rectangle(framePoint, dialogSize);
+                        Rectangle drawArea2 = new Rectangle(framePoint, new Size(140,175));
                         initialImage = imageFrameT.Copy();
-                        Image<Bgr, Byte> opacityOverlay = new Image<Bgr, byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
+                        Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
                         initialImage.ROI = drawArea;
                         opacityOverlay.CopyTo(initialImage);
                         initialImage.ROI = System.Drawing.Rectangle.Empty;
-                        double alpha = 0.8;
+                        double alpha = 0.7;
                         double beta = 1 - alpha;
                         double gamma = 0;
-                        initialImage.Draw(drawArea, new Bgr(Color.LawnGreen), 2);
+                        initialImage.Draw(drawArea, new Bgr(Color.Black), 2);
                         initialImage = imageFrameT.AddWeighted(initialImage, alpha, beta, gamma);
-
+                        ////***********FONT***********
+                        MCvFont f = new MCvFont(Emgu.CV.CvEnum.FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1, 1);
+                        ////***********TEXT***********
+                        if (textBox1.Text.Length <= 15)
+                        {
+                            initialImage.Draw(textBox1.Text, ref f, new Point(frameTextPoint.X + 150, frameTextPoint.Y + 30), new Bgr(Color.LawnGreen));
+                        }
+                        else if (textBox1.Text.Length > 15)
+                        {
+                            for(int i =1;i<=textBox1.Text.Length;i++)
+                            {
+                                if ((i % 15) == 0)
+                                {
+                                    frameTextPoint.Y += 30;
+                                }
+                                initialImage.Draw(textBox1.Text, ref f, new Point(frameTextPoint.X + 150, frameTextPoint.Y + 30), new Bgr(Color.LawnGreen));
+                            }
+                        }
+                        ////***********Picture***********
+                        Image<Bgr, Byte> imageSrc = new Image<Bgr, Byte>(tempPath);
+                        initialImage.ROI = drawArea2;
+                        CvInvoke.cvCopy(imageSrc, initialImage, IntPtr.Zero);
+                        initialImage.ROI = Rectangle.Empty;
                     }
+                    imageBox1.Image = initialImage;
                 }
-
-                imageBox1.Image = initialImage;
+               
             }
             
         }
@@ -119,7 +155,7 @@ namespace EMGUCV
             _form1.Show();
             
         }
-        private void TrainFrame()
+        private void TrainFrame(int newid)
         {
             try
             {
@@ -131,7 +167,7 @@ namespace EMGUCV
                 //ArrayList pic = new ArrayList();
                 if (imageFrameT != null)
                 {
-                    Image<Gray, byte> greyImage = imageFrameT.Convert<Gray, byte>();
+                    Image<Gray, byte> greyImage = imageFrameT.Convert<Gray, Byte>();
                     
 
                     var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
@@ -174,7 +210,7 @@ namespace EMGUCV
 
 
                                     cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(textBox1.Text, tempPath,true);
+                                    mydb.InsertImageTraining(newid, tempPath, true);
 
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
@@ -186,11 +222,20 @@ namespace EMGUCV
                         }
                     }
                 }
+                else
+                {
+                    mydb.DeleteUser(newid);
+                }
             }
             catch
             {
                 // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
+        }
+
+        private void FormTrain_Load(object sender, EventArgs e)
+        {
+
         } 
     }
 }

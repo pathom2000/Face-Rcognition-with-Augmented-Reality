@@ -5,21 +5,26 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Timers;
+
 using System.Windows.Forms;
+using System.Diagnostics;
 using Emgu.CV;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Features2D;
 
+using System.IO;
+using System.Collections;
+using System.Threading;
+using System.Threading.Tasks;
+
+
 namespace EMGUCV
 {
-    public partial class FormManualTrain : Form
+    public partial class FormTrain : Form
     {
-        OpenFileDialog browseImage;
-        Image<Gray, byte> loadImage;
-
         private Form1 _form1;
         private Capture captureT;
         private Image<Bgr, Byte> imageFrameT;
@@ -36,12 +41,9 @@ namespace EMGUCV
         private String showedStatus = "...";
         private Point facePosition;
         Image<Bgr, byte> initialImage;
-        private Int32 newid;
-        public FormManualTrain(Form1 frm1)
+        public FormTrain(Form1 frm1)
         {
             InitializeComponent();
-            browseImage = new OpenFileDialog();
-
             _form1 = frm1;
 
             eigenRecog = new Classifier_Train();
@@ -51,32 +53,73 @@ namespace EMGUCV
             minEye = new Size(10, 10);
             maxEye = new Size(225, 225);
             font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-            string folderPath = "";
-            DialogResult result = browseImage.ShowDialog();
-            if (result == DialogResult.OK) // Test result.
-            {
-                folderPath = browseImage.FileName;
-            }
-            Console.WriteLine(folderPath);
-            loadImage = new Image<Gray, byte>(folderPath).Resize(640,480,INTER.CV_INTER_CUBIC);
-            imageBox1.Image = loadImage;
+            
+            captureT = new Capture();
+            Application.Idle += new EventHandler(runningCamera);
+            
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-
-            mydb.InsertUserData(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
-            newid = mydb.getUserId(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
-            if (newid != 0)
-            {
-                TrainFrame(newid);
-            }
+            TrainFrame();
         }
-        private void TrainFrame(int newid)
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            Application.Idle -= runningCamera;
+            if (captureT != null)
+            {
+                captureT.Dispose();
+            }
+                
+            _form1.Show();
+            this.Close();
+        }
+        private void runningCamera(object sender, EventArgs e)
+        {
+            imageFrameT = captureT.QueryFrame();
+            
+            if (imageFrameT != null)
+            {
+                
+                if(facePosition != null){
+                    if (showedStatus.Equals("..."))
+                    {
+                        Size dialogSize = new Size(300, 100);
+                        Rectangle drawArea = new Rectangle(facePosition, dialogSize);
+                        initialImage = imageFrameT.Copy();
+                        Image<Bgr, Byte> opacityOverlay = new Image<Bgr, byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
+                        initialImage.ROI = drawArea;
+                        opacityOverlay.CopyTo(initialImage);
+                        initialImage.ROI = System.Drawing.Rectangle.Empty;
+                        double alpha = 0.8;
+                        double beta = 1 - alpha;
+                        double gamma = 0;
+                        initialImage.Draw(drawArea, new Bgr(Color.LawnGreen), 2);
+                        initialImage = imageFrameT.AddWeighted(initialImage, alpha, beta, gamma);
+
+                    }
+                }
+
+                imageBox1.Image = initialImage;
+            }
+            
+        }
+       
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+
+            if (e.CloseReason == CloseReason.WindowsShutDown) return;
+            Application.Idle -= runningCamera;
+            if (captureT != null)
+            {
+                captureT.Dispose();
+            }
+            _form1.Show();
+            
+        }
+        private void TrainFrame()
         {
             try
             {
@@ -86,18 +129,18 @@ namespace EMGUCV
                 Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
 
                 //ArrayList pic = new ArrayList();
-                if (loadImage != null)
+                if (imageFrameT != null)
                 {
+                    Image<Gray, byte> greyImage = imageFrameT.Convert<Gray, byte>();
+                    
 
-
-
-                    var faces = face.Detect(loadImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
+                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
                     if (faces.Length > 0)
                     {
                         foreach (var facecount in faces)
                         {
                             facePosition = new Point(facecount.rect.X, facecount.rect.Y);
-                            var eyeObjects = eyeWithGlass.DetectMultiScale(loadImage, 1.3, 6, minEye, maxEye);
+                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
                             if (eyeObjects.Length == 2)
                             {
                                 Console.WriteLine("eye");
@@ -116,12 +159,12 @@ namespace EMGUCV
 
                                 //imageFrameT.Draw(facecount.rect, new Bgr(Color.Red), 2);
                                 //imageFrameT.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
-                                loadImage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
+                                greyImage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
                                 //CropFrame = greyImage.Copy();
                                 //pic.Add(CropFrame);
 
                                 //get bigger face in frame
-                                cropimage = loadImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
                                 if (!cropimage.Equals(darkimage))
                                 {
                                     cropimage._EqualizeHist();
@@ -131,7 +174,7 @@ namespace EMGUCV
 
 
                                     cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(newid, tempPath, true);
+                                    mydb.InsertImageTraining(textBox1.Text, tempPath,true);
 
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
@@ -149,13 +192,5 @@ namespace EMGUCV
                 // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         } 
-    
-        private void button2_Click(object sender, EventArgs e)
-        {
-                   
-
-            _form1.Show();
-            this.Close();
-        }
     }
 }

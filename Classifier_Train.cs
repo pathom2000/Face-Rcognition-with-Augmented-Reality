@@ -38,7 +38,7 @@ namespace EMGUCV
         float Eigen_Distance = 0;
         string Eigen_label;
         int Eigen_threshold = 0;
-        int recognizeTreshold = 5000;
+        int recognizeTreshold = 10000;
         int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;

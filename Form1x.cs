@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -78,11 +78,6 @@ namespace EMGUCV
         private string logFolder = "E:/Images/log/";
         private string logName;
 
-        private String showedStatus = "...";
-        private Size frameSize = new Size(400, 400);
-        private Point framePoint = new Point(30, 30);
-        Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
-
         public Form1()
         {
             InitializeComponent();
@@ -108,17 +103,13 @@ namespace EMGUCV
             //log record
             DateTime now = DateTime.Now;
             logName = now.ToString();
-            logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");
-
+            logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");      
         }
      
         private void button1_Click(object sender, EventArgs e)
-        {
-            if (mydb.IsServerConnected())
-            {
-                Console.WriteLine(mydb.getUserData("54010001"));
+        {            
                 capture = new Capture();
-                Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
+                Console.WriteLine("resolution:"+capture.Height +","+capture.Width);
                 //Form1.CheckForIllegalCrossThreadCalls = false;
                 /*t = new Thread(delegate()
                 {
@@ -132,92 +123,33 @@ namespace EMGUCV
                     
                 });
                 t.Start();*/
-
+                
                 Application.Idle += new EventHandler(ProcessFrame);
                 Application.Idle += new EventHandler(runningFrame);
                 Application.Idle += new EventHandler(runningCropFrame);
-
                 button1.Enabled = false;
-                button2.Enabled = false;
-            }
-            else
-            {
-                MessageBox.Show("Database not connect.");
-            }
-                
+                button2.Enabled = false;  
         }
         
-        /*private void updateDistanceTreshold(object sender, EventArgs e)
-        {
-
-            Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt"));
-            
-            Image<Bgr, byte> calcFrame = capture.QueryFrame();
-            if (calcFrame != null){
-                Image<Gray, byte> calcGrayFrame = calcFrame.Convert<Gray,byte>();
-                var calcfaces = calcface.Detect(calcGrayFrame, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
-                if (calcfaces.Length != 0)
-                {
-                    calcGrayFrame.ROI = new Rectangle(new Point(calcfaces[0].rect.X, calcfaces[0].rect.Y), new Size(calcfaces[0].rect.Width, calcfaces[0].rect.Height));
-                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
-                    Int32 sumIntensity = 0;
-                    for (int i = 0; i < calcGrayFrame.Width; i++)
-                    {
-                        for (int j = 0; j < calcGrayFrame.Height; j++)
-                        {
-                            sumIntensity += calcGrayFrame.Data[j, i, 0];
-                        }
-                    }
-                    int avgIntensity = sumIntensity / area;
-                    Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
-                }
-                else
-                {
-                    Console.WriteLine("------------------Fail");
-                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
-                    Int32 sumIntensity = 0;
-                    for (int i = 0; i < calcGrayFrame.Width; i++)
-                    {
-                        for (int j = 0; j < calcGrayFrame.Height; j++)
-                        {
-                            sumIntensity += calcGrayFrame.Data[j, i, 0];
-                        }
-                    }
-                    int avgIntensity = sumIntensity / area;
-                    Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
-                }
-                
-            }
-
-        }   */         
+                  
         private void button2_Click(object sender, EventArgs e)
         {
-            if (mydb.IsServerConnected())
-            {
-                if (t != null)
-                {
+            if(t != null){
 
-                    Console.WriteLine(t.ThreadState);
-                    t.Abort();
-                    timer.Stop();
-                    timer.Close();
-
-                }
-
-                Application.Idle -= ProcessFrame;
-                Application.Idle -= runningFrame;
-                ReleaseData();
-                FormTrain frmTrain = new FormTrain(this);
-                frmTrain.Show();
-                button1.Enabled = true;
-                this.Hide();
+                Console.WriteLine(t.ThreadState);
+                t.Abort();
+                timer.Stop();
+                timer.Close();
+              
             }
-            else
-            {
-                MessageBox.Show("Database not connect.");
-            }
+            
+            Application.Idle -= ProcessFrame;
+            Application.Idle -= runningFrame;
+            ReleaseData();
+            FormTrain frmTrain = new FormTrain(this);
+            frmTrain.Show();
+            button1.Enabled = true;
+            this.Hide();
         }    
         
         private void ReleaseData()
@@ -232,51 +164,16 @@ namespace EMGUCV
             if (imageFrame != null)
             {
                 drawFrame = imageFrame.Copy();
-                
+                imageBox1.Image = drawFrame;
                 if (!realfaceRectangle.IsEmpty)
                 {
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
                     drawFrame.Draw(faceRectangle, new Bgr(Color.LawnGreen), 2);
                     drawFrame.Draw(name, ref font, facePosition, new Bgr(Color.Red));
-                    runAR();
+                    
                 }
-                imageBox1.Image = drawFrame;
-                
             }
         }
-
-        private void runAR()
-        {
-            Rectangle drawArea = new Rectangle(framePoint, frameSize);
-            Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
-            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
-            drawFrame.ROI = drawArea;
-            opacityOverlay.CopyTo(drawFrame);
-            drawFrame.ROI = System.Drawing.Rectangle.Empty;
-            double alpha = 0.7;
-            double beta = 1 - alpha;
-            double gamma = 0;
-            drawFrame.Draw(drawArea, new Bgr(Color.Black), 2);
-            drawFrame = imageFrame.AddWeighted(drawFrame, alpha, beta, gamma);
-            ////***********FONT***********
-            MCvFont f = new MCvFont(Emgu.CV.CvEnum.FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1, 1);
-            ////***********TEXT***********
-            if(name.Length <= 15){
-                drawFrame.Draw(name, ref f, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
-            }
-            else
-            {
-                //////????????????????????????
-            }
-            ////***********Picture***********
-            DBConn getImg = new DBConn();
-            //imgAR = getImg.getResultImage(name);
-            Image<Bgr, Byte> imageSrc = imgAR.Convert<Bgr,byte>();
-            drawFrame.ROI = drawArea2;
-            CvInvoke.cvCopy(imageSrc, drawFrame, IntPtr.Zero);
-            drawFrame.ROI = Rectangle.Empty;
-        }
-
         private void runningCropFrame(object sender, EventArgs arg)
         {
             
@@ -293,14 +190,14 @@ namespace EMGUCV
                 Image<Gray, byte> greyImage = imageFrame.Copy().Convert<Gray, byte>();
                 
                 
-                greyImage._SmoothGaussian(3);
+                //greyImage._SmoothGaussian(3);
                 //greyImage._EqualizeHist();
                 stopWatch.Start();
-                var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
+                var faces = face.Detect(greyImage,1.2,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
                 
                 if (faces.Length == 0)
                 {
-                    var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                    var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.2, 6, minEye, maxEye);
                     if(eyeObjects.Length == 2)
                     {
                         #region comment
@@ -389,7 +286,7 @@ namespace EMGUCV
                             faceRectangleSize = new Size(facecount.rect.Width,facecount.rect.Height);
                             faceRectangle = new Rectangle(facePosition, faceRectangleSize);
                             greyImage.ROI = faceRectangle;
-                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.2, 6, minEye, maxEye);
                             greyImage.ROI = System.Drawing.Rectangle.Empty;
                             if (eyeObjects.Length == 2)
                             {
@@ -452,7 +349,7 @@ namespace EMGUCV
                                                 if (meanDistance <= eigenRecog.getRecognizeTreshold)
                                                 {
                                                     learnImage.Save(tempPath);
-                                                    mydb.InsertImageTraining(int.Parse(name), tempPath, false);
+                                                    mydb.InsertImageTraining(name, tempPath, false);
                                                     if (mydb.getSpecifyImageCount(name) > 3)
                                                     {
                                                         mydb.DeleteOldestImage(name);
