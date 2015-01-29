@@ -74,15 +74,16 @@ namespace EMGUCV
         private System.Timers.Timer timer;
 
         private string name = "Processing...";
-        private string tempPath = "D:/Images/tmp.jpg";
-        private string logFolder = "D:/Images/log/";
+        private string tempPath = "E:/Images/tmp.jpg";
+        private string logFolder = "E:/Images/log/";
         private string logName;
-
+        
         private String showedStatus = "...";
         private Size frameSize = new Size(400, 400);
         private Point framePoint = new Point(30, 30);
         Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
         private string txtAR;
+        private bool ARDisplayFlag = false;
 
         public Form1()
         {
@@ -136,7 +137,7 @@ namespace EMGUCV
 
                 Application.Idle += new EventHandler(ProcessFrame);
                 Application.Idle += new EventHandler(runningFrame);
-                Application.Idle += new EventHandler(runningCropFrame);
+               // Application.Idle += new EventHandler(runningCropFrame);
 
                 button1.Enabled = false;
                 button2.Enabled = false;
@@ -254,17 +255,17 @@ namespace EMGUCV
             Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
             drawFrame.ROI = drawArea;
             opacityOverlay.CopyTo(drawFrame);
-            drawFrame.ROI = System.Drawing.Rectangle.Empty;
-            double alpha = 0.7;
+            drawFrame.ROI = Rectangle.Empty;
+            double alpha = 0.8;
             double beta = 1 - alpha;
             double gamma = 0;
             drawFrame.Draw(drawArea, new Bgr(Color.Black), 2);
             drawFrame = imageFrame.AddWeighted(drawFrame, alpha, beta, gamma);
-            ////***********FONT***********
-            MCvFont f = new MCvFont(Emgu.CV.CvEnum.FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1, 1);
             ////***********TEXT***********
-            DBConn getTxt = new DBConn();
-            txtAR = getTxt.getUserData(nameID);
+            if (!ARDisplayFlag)
+            {
+                txtAR = mydb.getUserData(nameID);
+            }
             //txtAR = "abc def ghi";
             string[] txtSet = new string[name.Length];
             int tmpY = framePoint.Y;
@@ -273,32 +274,61 @@ namespace EMGUCV
             {
                 
                 //if (i == 0)
-                    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                    tmpY += 30;
+                switch(i){
+                    case 0:
+                        drawFrame.Draw("  ID Number: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                        tmpY += 30;
+                        break;
+                    case 1:
+                        drawFrame.Draw("       Name: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                        tmpY += 30;
+                        break;
+                    case 2:
+                        drawFrame.Draw("    Surname: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                        tmpY += 30;
+                        break;
+                    case 3:
+                        drawFrame.Draw("  Birthdate: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                        tmpY += 30;
+                        break;
+                    case 4:
+                        break;
+                    case 5:
+                        drawFrame.Draw("Blood group: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                        tmpY += 30;
+                        break;
+    
+                }
+                    
+                /*drawFrame.Draw(txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                    tmpY += 30;*/
                 //if (i == 1)
                 //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 60), new Bgr(Color.LawnGreen));
                 //if (i == 2)
                 //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 90), new Bgr(Color.LawnGreen));
             }
 
-                if (name.Length <= 15)
+                /*if (name.Length <= 15)
                 {
-                    drawFrame.Draw(name, ref f, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
+                    drawFrame.Draw(name, ref font, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
                 }
                 else
                 {
                     //////????????????????????????
-                }
+                }*/
             ////***********Picture***********
-            DBConn getImg = new DBConn();
-            imgAR = getImg.getResultImage(nameID);
+                if (!ARDisplayFlag)
+                {
+                    imgAR = mydb.getResultImage(nameID);
+                }
             Image<Bgr, Byte> imageSrc = imgAR.Convert<Bgr,byte>();
             drawFrame.ROI = drawArea2;
             CvInvoke.cvCopy(imageSrc, drawFrame, IntPtr.Zero);
             drawFrame.ROI = Rectangle.Empty;
+            ARDisplayFlag = true;
         }
 
-        private void runningCropFrame(object sender, EventArgs arg)
+        /*private void runningCropFrame(object sender, EventArgs arg)
         {
             
             if (imageroi != null)
@@ -306,7 +336,7 @@ namespace EMGUCV
                 imageBox2.Image = imageroi;
                 
             }
-        }
+        }*/
         private void ProcessFrame(object sender, EventArgs arg)
         {                   
             if(imageFrame != null){
@@ -392,6 +422,7 @@ namespace EMGUCV
                     {
                         name = "Processing...";
                         learningTag = true;
+                        ARDisplayFlag = false;
                         faceRectangle = Rectangle.Empty;
                         realfaceRectangle = Rectangle.Empty;
                         recogNameResult.Clear();
@@ -525,10 +556,8 @@ namespace EMGUCV
                     TimeSpan ts = stopWatch.Elapsed;
 
                     // Format and display the TimeSpan value. 
-                    string elapsedTime = String.Format("{0}",
-
-                        ts.TotalMilliseconds * 10000);
-                    textBox2.Text = elapsedTime;
+                    string elapsedTime = String.Format("{0}",ts.TotalMilliseconds * 10000);
+                    //textBox2.Text = elapsedTime;
                     //listView1.Items.Add(elapsedTime);
                     //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
                     stopWatch.Reset();
