@@ -74,14 +74,15 @@ namespace EMGUCV
         private System.Timers.Timer timer;
 
         private string name = "Processing...";
-        private string tempPath = "E:/Images/tmp.jpg";
-        private string logFolder = "E:/Images/log/";
+        private string tempPath = "D:/Images/tmp.jpg";
+        private string logFolder = "D:/Images/log/";
         private string logName;
 
         private String showedStatus = "...";
         private Size frameSize = new Size(400, 400);
         private Point framePoint = new Point(30, 30);
         Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
+        private string txtAR;
 
         public Form1()
         {
@@ -238,14 +239,15 @@ namespace EMGUCV
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
                     drawFrame.Draw(faceRectangle, new Bgr(Color.LawnGreen), 2);
                     drawFrame.Draw(name, ref font, facePosition, new Bgr(Color.Red));
-                    runAR();
+                    if (name != "Processing...")
+                        runAR(name);
                 }
                 imageBox1.Image = drawFrame;
                 
             }
         }
 
-        private void runAR()
+        private void runAR(string nameID)
         {
             Rectangle drawArea = new Rectangle(framePoint, frameSize);
             Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
@@ -261,16 +263,35 @@ namespace EMGUCV
             ////***********FONT***********
             MCvFont f = new MCvFont(Emgu.CV.CvEnum.FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1, 1);
             ////***********TEXT***********
-            if(name.Length <= 15){
-                drawFrame.Draw(name, ref f, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
-            }
-            else
+            DBConn getTxt = new DBConn();
+            txtAR = getTxt.getUserData(nameID);
+            //txtAR = "abc def ghi";
+            string[] txtSet = new string[name.Length];
+            int tmpY = framePoint.Y;
+            txtSet = txtAR.Split(' ');
+            for (int i = 0; i < txtSet.Length; i++)
             {
-                //////????????????????????????
+                
+                //if (i == 0)
+                    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
+                    tmpY += 30;
+                //if (i == 1)
+                //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 60), new Bgr(Color.LawnGreen));
+                //if (i == 2)
+                //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 90), new Bgr(Color.LawnGreen));
             }
+
+                if (name.Length <= 15)
+                {
+                    drawFrame.Draw(name, ref f, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
+                }
+                else
+                {
+                    //////????????????????????????
+                }
             ////***********Picture***********
             DBConn getImg = new DBConn();
-            //imgAR = getImg.getResultImage(name);
+            imgAR = getImg.getResultImage(nameID);
             Image<Bgr, Byte> imageSrc = imgAR.Convert<Bgr,byte>();
             drawFrame.ROI = drawArea2;
             CvInvoke.cvCopy(imageSrc, drawFrame, IntPtr.Zero);
