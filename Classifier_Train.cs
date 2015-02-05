@@ -108,7 +108,7 @@ namespace EMGUCV
                     {
                         Eigen_label = "UnknownNull";
                         Eigen_Distance = 0;
-                        return Eigen_label + " " + Eigen_Distance.ToString();
+                        return Eigen_label;
                     }
                     else
                     {
@@ -126,7 +126,7 @@ namespace EMGUCV
                             // 
                         else
                         {
-                            return "UnknownFace" + " " + Eigen_Distance.ToString();
+                            return "UnknownFace";
                         }
                     }
 
