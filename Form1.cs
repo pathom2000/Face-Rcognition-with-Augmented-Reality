@@ -25,9 +25,10 @@ namespace EMGUCV
     
     public partial class Form1 : Form
     {
-        private Thread t;
+       
         private DBConn mydb;
         private MCvFont font;
+        private MCvFont fontbig;
         private Stopwatch stopWatch = new Stopwatch();
         private Capture capture;
         private HaarCascade face;
@@ -55,7 +56,7 @@ namespace EMGUCV
         private Size ROIFaceSize = new Size(140,175);
 
         private int maxImageCount = 21;
-        private Classifier_Train eigenRecog = new Classifier_Train();
+        private Classifier_Train eigenRecog;
         private CascadeClassifier eyeWithGlass;
         private CascadeClassifier nose;
         private CascadeClassifier mouth;
@@ -65,25 +66,23 @@ namespace EMGUCV
         private Size maxNose;
         private Size minMouth;
         private Size maxMouth;
-        private Point[] coord;
-        private double ROImargin = 1.00;
-        private double widthScale = 1.00;
         private int ROIwidth = 140;
         private int ROIheight = 175;
         private bool learningTag = true;
-        private System.Timers.Timer timer;
+        
 
         private string name = "Processing...";
         private string tempPath = "E:/Images/tmp.jpg";
         private string logFolder = "E:/Images/log/";
         private string logName;
         
-        private String showedStatus = "...";
+        
         private Size frameSize = new Size(400, 400);
         private Point framePoint = new Point(30, 30);
         Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
         private string txtAR;
         private bool ARDisplayFlag = false;
+        private bool recogButtonState = false;
 
         public Form1()
         {
@@ -105,109 +104,66 @@ namespace EMGUCV
             maxNose = new Size(225, 225);
             minMouth = new Size(10, 10);
             maxMouth = new Size(225, 225);
-            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);    
-
+            font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.4d, 0.4d);
+            fontbig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.6d, 0.6d);    
             //log record
             DateTime now = DateTime.Now;
             logName = now.ToString();
             logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");
-
+            label2.Text = "Idle";
+            
         }
      
         private void button1_Click(object sender, EventArgs e)
         {
-            if (mydb.IsServerConnected())
+            if (!recogButtonState)
             {
-                Console.WriteLine(mydb.getUserData("54010001"));
-                capture = new Capture();
-                Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
-                //Form1.CheckForIllegalCrossThreadCalls = false;
-                /*t = new Thread(delegate()
+                if (mydb.IsServerConnected())
                 {
-                    timer = new System.Timers.Timer(TimeSpan.FromSeconds(5).TotalMilliseconds); // set the time
+                    //Console.WriteLine(mydb.getUserData("54010001"));
+                    eigenRecog = new Classifier_Train();
+                    capture = new Capture();
+                    Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
+                    Application.Idle += new EventHandler(ProcessFrame);
+                    Application.Idle += new EventHandler(runningFrame);
+                    // Application.Idle += new EventHandler(runningCropFrame);
 
-                    timer.AutoReset = true;
-
-                    timer.Elapsed += new System.Timers.ElapsedEventHandler(updateDistanceTreshold);
-
-                    timer.Start();
-                    
-                });
-                t.Start();*/
-
-                Application.Idle += new EventHandler(ProcessFrame);
-                Application.Idle += new EventHandler(runningFrame);
-               // Application.Idle += new EventHandler(runningCropFrame);
-
-                button1.Enabled = false;
-                button2.Enabled = false;
-            }
-            else
-            {
-                MessageBox.Show("Database not connect.");
-            }
-                
-        }
-        
-        /*private void updateDistanceTreshold(object sender, EventArgs e)
-        {
-
-            Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt"));
-            
-            Image<Bgr, byte> calcFrame = capture.QueryFrame();
-            if (calcFrame != null){
-                Image<Gray, byte> calcGrayFrame = calcFrame.Convert<Gray,byte>();
-                var calcfaces = calcface.Detect(calcGrayFrame, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
-                if (calcfaces.Length != 0)
-                {
-                    calcGrayFrame.ROI = new Rectangle(new Point(calcfaces[0].rect.X, calcfaces[0].rect.Y), new Size(calcfaces[0].rect.Width, calcfaces[0].rect.Height));
-                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
-                    Int32 sumIntensity = 0;
-                    for (int i = 0; i < calcGrayFrame.Width; i++)
-                    {
-                        for (int j = 0; j < calcGrayFrame.Height; j++)
-                        {
-                            sumIntensity += calcGrayFrame.Data[j, i, 0];
-                        }
-                    }
-                    int avgIntensity = sumIntensity / area;
-                    Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                    button1.Text = "STOP RECOGNIZE";
+                    button2.Enabled = false;
+                    button3.Enabled = false;
+                    recogButtonState = true;
                 }
                 else
                 {
-                    Console.WriteLine("------------------Fail");
-                    int area = calcGrayFrame.Width * calcGrayFrame.Height;
-                    Int32 sumIntensity = 0;
-                    for (int i = 0; i < calcGrayFrame.Width; i++)
-                    {
-                        for (int j = 0; j < calcGrayFrame.Height; j++)
-                        {
-                            sumIntensity += calcGrayFrame.Data[j, i, 0];
-                        }
-                    }
-                    int avgIntensity = sumIntensity / area;
-                    Console.WriteLine("------------------Intensity:" + avgIntensity);
-                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "------------------Intensity:" + avgIntensity + "\r\n");
+                    MessageBox.Show("Database not connect.");
                 }
-                
             }
-
-        }   */         
+            else
+            {
+                
+                Application.Idle -= new EventHandler(ProcessFrame);
+                Application.Idle -= new EventHandler(runningFrame);
+                imageBox1.Image = null;
+                imageFrame = null;
+                realfaceRectangle = Rectangle.Empty;
+                button1.Text = "START RECOGNIZE";
+                recogButtonState = false;
+                label2.Text = "Idle";
+                progressBar1.Value = 0;
+                button2.Enabled = true;
+                button3.Enabled = true;
+                capture.Dispose();
+            }
+            
+                
+        }
+        
+              
         private void button2_Click(object sender, EventArgs e)
         {
             if (mydb.IsServerConnected())
             {
-                if (t != null)
-                {
-
-                    Console.WriteLine(t.ThreadState);
-                    t.Abort();
-                    timer.Stop();
-                    timer.Close();
-
-                }
-
+                
                 Application.Idle -= ProcessFrame;
                 Application.Idle -= runningFrame;
                 ReleaseData();
@@ -238,10 +194,24 @@ namespace EMGUCV
                 if (!realfaceRectangle.IsEmpty)
                 {
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
-                    drawFrame.Draw(faceRectangle, new Bgr(Color.LawnGreen), 2);
-                    drawFrame.Draw(name, ref font, facePosition, new Bgr(Color.Red));
+                    //drawFrame.Draw(faceRectangle, new Bgr(Color.LimeGreen), 2);
+                    drawFrame.Draw(name, ref fontbig, facePosition, new Bgr(Color.Red));
                     if (name != "Processing...")
+                    {
+                        if(name.Equals("UnknownNull")){
+                            label2.Text = "Fail";
+                        }
+                        else
+                        {
+                            label2.Text = "Success";
+                        }
+                        
                         runAR(name);
+                    }
+                    else
+                    {
+                        label2.Text = name;
+                    }    
                 }
                 imageBox1.Image = drawFrame;
                 
@@ -252,70 +222,89 @@ namespace EMGUCV
         {
             Rectangle drawArea = new Rectangle(framePoint, frameSize);
             Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
-            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
+            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Green));
             drawFrame.ROI = drawArea;
             opacityOverlay.CopyTo(drawFrame);
             drawFrame.ROI = Rectangle.Empty;
+
             double alpha = 0.8;
             double beta = 1 - alpha;
             double gamma = 0;
             drawFrame.Draw(drawArea, new Bgr(Color.Black), 2);
             drawFrame = imageFrame.AddWeighted(drawFrame, alpha, beta, gamma);
+            drawFrame.Draw(drawArea, new Bgr(Color.LimeGreen), 2);
             ////***********TEXT***********
             if (!ARDisplayFlag)
             {
-                txtAR = mydb.getUserData(nameID);
-            }
-            //txtAR = "abc def ghi";
-            string[] txtSet = new string[name.Length];
-            int tmpY = framePoint.Y;
-            txtSet = txtAR.Split(' ');
-            for (int i = 0; i < txtSet.Length; i++)
-            {
-                
-                //if (i == 0)
-                switch(i){
-                    case 0:
-                        drawFrame.Draw("  ID Number: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                        tmpY += 30;
-                        break;
-                    case 1:
-                        drawFrame.Draw("       Name: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                        tmpY += 30;
-                        break;
-                    case 2:
-                        drawFrame.Draw("    Surname: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                        tmpY += 30;
-                        break;
-                    case 3:
-                        drawFrame.Draw("  Birthdate: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                        tmpY += 30;
-                        break;
-                    case 4:
-                        break;
-                    case 5:
-                        drawFrame.Draw("Blood group: " + txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                        tmpY += 30;
-                        break;
-    
-                }
-                    
-                /*drawFrame.Draw(txtSet[i], ref font, new Point(framePoint.X + 150, tmpY + 30), new Bgr(Color.LawnGreen));
-                    tmpY += 30;*/
-                //if (i == 1)
-                //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 60), new Bgr(Color.LawnGreen));
-                //if (i == 2)
-                //    drawFrame.Draw(txtSet[i], ref f, new Point(framePoint.X + 150, tmpY + 90), new Bgr(Color.LawnGreen));
-            }
-
-                /*if (name.Length <= 15)
+                if (!nameID.Equals("UnknownNull"))
                 {
-                    drawFrame.Draw(name, ref font, new Point(framePoint.X + 150, framePoint.Y + 30), new Bgr(Color.LawnGreen));
+                    txtAR = mydb.getUserData(nameID);
                 }
                 else
                 {
-                    //////????????????????????????
-                }*/
+                    txtAR = "Can not recognize any face";
+                }
+            }
+            //txtAR = "abc def ghi";
+            
+            int tmpY = framePoint.Y;
+            if (!nameID.Equals("UnknownNull"))
+            {
+                string[] txtSet = txtAR.Split(' ');
+                for (int i = 0; i < txtSet.Length; i++)
+                {
+
+                    
+                    switch (i)
+                    {
+                        case 0:
+                            drawFrame.Draw("     User ID: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label9.Text = "User ID: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 1:
+                            drawFrame.Draw("       Name: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label4.Text = "Name: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 2:
+                            drawFrame.Draw("   Surname: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label5.Text = "Surname: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 3:
+                            drawFrame.Draw("   Birthdate: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label7.Text = "Birthdate: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 4:
+                            break;
+                        case 5:
+                            drawFrame.Draw("Blood group: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label6.Text = "Blood group: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 6:
+                            drawFrame.Draw("     Gender: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            label8.Text = "Gender: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                string txtSet = txtAR;
+                label4.Text = "";
+                label5.Text = "";
+                label6.Text = "";
+                label7.Text = "";
+                label8.Text = "";
+                label9.Text = "";
+                drawFrame.Draw(txtSet, ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+            }
             ////***********Picture***********
                 if (!ARDisplayFlag)
                 {
@@ -425,6 +414,8 @@ namespace EMGUCV
                         ARDisplayFlag = false;
                         faceRectangle = Rectangle.Empty;
                         realfaceRectangle = Rectangle.Empty;
+                        label2.Text = "Idle";
+                        progressBar1.Value = 0;
                         recogNameResult.Clear();
                         recogDistanceResult.Clear();
                         Console.WriteLine("Clear");
@@ -442,7 +433,7 @@ namespace EMGUCV
                             faceRectangle = new Rectangle(facePosition, faceRectangleSize);
                             greyImage.ROI = faceRectangle;
                             var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                            greyImage.ROI = System.Drawing.Rectangle.Empty;
+                            greyImage.ROI = Rectangle.Empty;
                             if (eyeObjects.Length == 2)
                             {
 
@@ -478,6 +469,7 @@ namespace EMGUCV
                                     imageroi = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
                                     
                                     //find the most relative face
+                                    progressBar1.Value = recogNameResult.Count;
                                     if (recogNameResult.Count == maxImageCount)
                                     {
                                         Console.WriteLine("Processing...");
@@ -571,15 +563,7 @@ namespace EMGUCV
 
         private void button3_Click(object sender, EventArgs e)
         {
-            if (t != null)
-            {
-
-                Console.WriteLine(t.ThreadState);
-                t.Abort();
-                timer.Stop();
-                timer.Close();
-
-            }
+            
 
             Application.Idle -= ProcessFrame;
             Application.Idle -= runningFrame;

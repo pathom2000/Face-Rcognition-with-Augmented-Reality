@@ -21,8 +21,8 @@ namespace EMGUCV
         Image<Gray, byte> loadImage;
 
         private Form1 _form1;
-        private Capture captureT;
-        private Image<Bgr, Byte> imageFrameT;
+        
+        
         private HaarCascade face;
         private CascadeClassifier eyeWithGlass;
         private int ROIwidth = 140;
@@ -33,9 +33,7 @@ namespace EMGUCV
         private DBConn mydb;
         private Classifier_Train eigenRecog;
         private MCvFont font;
-        private String showedStatus = "...";
         private Point facePosition;
-        Image<Bgr, byte> initialImage;
         private Int32 newid;
         public FormManualTrain(Form1 frm1)
         {
@@ -65,16 +63,18 @@ namespace EMGUCV
             loadImage = new Image<Gray, byte>(folderPath).Resize(640,480,INTER.CV_INTER_CUBIC);
             imageBox1.Image = loadImage;
         }
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
 
+            if (e.CloseReason == CloseReason.WindowsShutDown) return;
+           
+            _form1.Show();
+
+        }
         private void button1_Click(object sender, EventArgs e)
         {
 
-            mydb.InsertUserData(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
-            newid = mydb.getUserId(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
-            if (newid != 0)
-            {
-                TrainFrame(newid);
-            }
         }
         private void TrainFrame(int newid)
         {
@@ -157,5 +157,7 @@ namespace EMGUCV
             _form1.Show();
             this.Close();
         }
+
+        
     }
 }

@@ -126,10 +126,10 @@ namespace EMGUCV
                 this.CloseConnection();
             }
         }
-        public void InsertUserData(string userName, string userSurname, string birthDate,string bloodType)
+        public void InsertUserData(string userName, string userSurname, string birthDate, string bloodType, string gender)
         {
 
-            string query = "INSERT INTO userprofile (name,surname,birthday,bloodtype) VALUES('" + userName + "','" + userSurname + "','" + birthDate + "','" + bloodType + "');";
+            string query = "INSERT INTO userprofile (name,surname,birthdate,bloodtype,gender) VALUES('" + userName + "','" + userSurname + "','" + birthDate + "','" + bloodType + "','" + gender + "');";
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -299,9 +299,9 @@ namespace EMGUCV
 
                 while (rdr.Read())
                 {
-                    for (int i = 0;i<5 ;i++ )
+                    for (int i = 0;i<6 ;i++ )
                     {
-                        if (i != 4)
+                        if (i != 5)
                         {
                             result += rdr.GetString(i) + " ";
                         }
@@ -316,6 +316,7 @@ namespace EMGUCV
                 }
                 //close connection
                 this.CloseConnection();
+                Console.WriteLine(result);
                 return result;
             }
             return null;
@@ -325,7 +326,7 @@ namespace EMGUCV
         {
 
             Image<Gray, byte> addimage;
-            string query = "select image,length(image) as filesize from faceimage where userid = '"+ res+"'";
+            string query = "select image,length(image) as filesize from faceimage where userid = '"+ res+"' and original = 'Y'";
             Image<Gray, byte> retval = new Image<Gray, byte>(140,175);
             Debug.WriteLine(query);
             byte[] temp;
