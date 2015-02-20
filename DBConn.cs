@@ -112,7 +112,7 @@ namespace EMGUCV
                 originalFlag = 'N';
             }
             string query = "INSERT INTO faceimage (userid, image,original) VALUES(" + Labelname + ", LOAD_FILE('" + TrainedImagePath + "'),'" + originalFlag + "')";
-            Debug.WriteLine(query);
+            Console.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
             {
@@ -146,8 +146,8 @@ namespace EMGUCV
         }
         public Int32 getUserId(string userName, string userSurname, string birthDate, string bloodType)
         {
-            string query = "select userid from userprofile where name = '" + userName + "' and surname = '" + userSurname + "' and birthday = '" + birthDate + "' and bloodtype = '" + bloodType +"';";
-            int retval;
+            string query = "select userid from userprofile where name = '" + userName + "' and surname = '" + userSurname + "' and birthdate = '" + birthDate + "' and bloodtype = '" + bloodType +"';";
+            Int32 retval;
             Debug.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)

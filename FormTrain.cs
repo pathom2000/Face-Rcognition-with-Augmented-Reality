@@ -34,7 +34,8 @@ namespace EMGUCV
         private int ROIheight = 175;
         private Size minEye;
         private Size maxEye;
-        private string tempPath = "E:/Images/tmp.jpg";
+        private string tempPath = "\\tmp.jpg";
+        private string folderPath = "";
         private DBConn mydb;
         private Classifier_Train eigenRecog;
         private MCvFont font;
@@ -66,17 +67,50 @@ namespace EMGUCV
             font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
             
             captureT = new Capture();
+            if (File.ReadAllText("setting.txt") != null)
+            {
+                folderPath = File.ReadAllText("setting.txt");
+            }
+            else
+            {
+                FolderBrowserDialog b = new FolderBrowserDialog();
+                b.Description = "Please select your installation path";
+                DialogResult r = b.ShowDialog();
+                if (r == DialogResult.OK) // Test result.
+                {
+                    folderPath = b.SelectedPath;
+                    Console.WriteLine(folderPath);
+                    File.WriteAllText(@"setting.txt", folderPath);
+                    MessageBox.Show("Path is at " + folderPath);
+                }
+            }
             Application.Idle += new EventHandler(runningCamera);
             
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
-            mydb.InsertUserData(textBox1.Text,textBox2.Text,textBox3.Text,comboBox1.Text,comboBox2.Text);
-            newid = mydb.getUserId(textBox1.Text, textBox2.Text, textBox3.Text, comboBox1.Text);
-            if(newid != 0){
-                TrainFrame(newid);
+            string[] dateTemp = textBox3.Text.Split('/');
+            string dateConvert = "";
+            if (dateTemp.Length == 3)
+            {
+                string temp = dateTemp[2];
+                dateTemp[2] = dateTemp[0];
+                dateTemp[0] = temp;
+                dateConvert = String.Join("/", dateTemp);
+                mydb.InsertUserData(textBox1.Text, textBox2.Text, dateConvert, comboBox1.Text, comboBox2.Text);
+                newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateConvert, comboBox1.Text);
+                if (newid != 0)
+                {
+                    TrainFrame(newid);
+                }
             }
+            else
+            {
+                MessageBox.Show("Incorrect date format"); 
+            }
+
+            
             
         }
 
@@ -216,11 +250,16 @@ namespace EMGUCV
                                 {
                                     cropimage._EqualizeHist();
                                     imageBox7.Image = cropimage;     //line 2
-                                    cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(newid, tempPath, true);
-
+                                    cropimage.Save(folderPath + tempPath);
+                                    string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                                    mydb.InsertImageTraining(newid, dbPath, true);
+                                    label6.Text = "Success";
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
+                                }
+                                else
+                                {
+                                    label6.Text = "Fail";
                                 }
 
                             }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -29,6 +29,7 @@ namespace EMGUCV
         private DBConn mydb;
         private MCvFont font;
         private MCvFont fontbig;
+        private MCvFont fontverybig;
         private Stopwatch stopWatch = new Stopwatch();
         private Capture capture;
         private HaarCascade face;
@@ -57,6 +58,7 @@ namespace EMGUCV
 
         private int maxImageCount = 21;
         private Classifier_Train eigenRecog;
+        private Classifier_LBPH lbphRecog;
         private CascadeClassifier eyeWithGlass;
         private CascadeClassifier nose;
         private CascadeClassifier mouth;
@@ -72,10 +74,10 @@ namespace EMGUCV
         
 
         private string name = "Processing...";
-        private string tempPath = "E:/Images/tmp.jpg";
-        private string logFolder = "E:/Images/log/";
+        private string tempPath = "\\tmp.jpg";
+        private string logFolder = "\\log\\";
         private string logName;
-        
+        private string folderPath = "";
         
         private Size frameSize = new Size(400, 400);
         private Point framePoint = new Point(30, 30);
@@ -83,7 +85,8 @@ namespace EMGUCV
         private string txtAR;
         private bool ARDisplayFlag = false;
         private bool recogButtonState = false;
-
+        int frameCount = 0;
+        bool countFlag = true;
         public Form1()
         {
             InitializeComponent();
@@ -105,13 +108,30 @@ namespace EMGUCV
             minMouth = new Size(10, 10);
             maxMouth = new Size(225, 225);
             font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.4d, 0.4d);
-            fontbig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.6d, 0.6d);    
+            fontbig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.6d, 0.6d);
+            fontverybig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.8d, 0.8d); 
             //log record
             DateTime now = DateTime.Now;
             logName = now.ToString();
             logName = logName.Replace("/", "").Replace(":", "").Replace(" ", "");
             label2.Text = "Idle";
-            
+            if(File.Exists("setting.txt")){
+                
+                folderPath = File.ReadAllText("setting.txt");
+            }
+            else
+            {
+                FolderBrowserDialog b = new FolderBrowserDialog();
+                b.Description = "Please select your installation path";
+                DialogResult r = b.ShowDialog();
+                if (r == DialogResult.OK) // Test result.
+                {
+                    folderPath = b.SelectedPath;
+                    Console.WriteLine(folderPath);
+                    File.WriteAllText(@"setting.txt", folderPath);
+                    MessageBox.Show("Path is at " + folderPath);
+                }
+            }                       
         }
      
         private void button1_Click(object sender, EventArgs e)
@@ -122,6 +142,7 @@ namespace EMGUCV
                 {
                     //Console.WriteLine(mydb.getUserData("54010001"));
                     eigenRecog = new Classifier_Train();
+                    //lbphRecog = new Classifier_LBPH();
                     capture = new Capture();
                     Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
                     Application.Idle += new EventHandler(ProcessFrame);
@@ -211,7 +232,19 @@ namespace EMGUCV
                     else
                     {
                         label2.Text = name;
-                    }    
+                    }
+                }
+                else
+                {
+                    if(countFlag){
+                        drawFrame.Draw("PLEASE EXPOSE YOUR", ref fontverybig, new Point(175, 220), new Bgr(Color.Lime));
+                        drawFrame.Draw("FACE TO CAMERA", ref fontverybig, new Point(210, 260), new Bgr(Color.Lime));
+                    }
+                    frameCount++;
+                    if(frameCount >= 10){
+                        countFlag = !countFlag;
+                        frameCount = 0;
+                    }
                 }
                 imageBox1.Image = drawFrame;
                 
@@ -222,12 +255,12 @@ namespace EMGUCV
         {
             Rectangle drawArea = new Rectangle(framePoint, frameSize);
             Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
-            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Green));
+            Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
             drawFrame.ROI = drawArea;
             opacityOverlay.CopyTo(drawFrame);
             drawFrame.ROI = Rectangle.Empty;
 
-            double alpha = 0.8;
+            double alpha = 0.7;
             double beta = 1 - alpha;
             double gamma = 0;
             drawFrame.Draw(drawArea, new Bgr(Color.Black), 2);
@@ -461,7 +494,7 @@ namespace EMGUCV
                                 imageroi = greyImage.Copy();
                                 greyImage.ROI = new Rectangle();
 
-                                
+                                //if(lbphRecog.IsTrained)
                                 if (eigenRecog.IsTrained)
                                 {
                                     
@@ -489,19 +522,25 @@ namespace EMGUCV
                                         {
                                             learnImage = imageroi;
                                             matchedResult = eigenRecog.Recognise(learnImage);
+                                            //matchedResult = lbphRecog.Recognise(learnImage);
                                             string[] matchedData = matchedResult.Split(' ');
                                             if ((Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
+                                            //if ((Double.Parse(matchedData[1]) <= lbphRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
                                             {
                                                 meanDistance = recogDistanceResult.Sum() / maxImageCount;
                                                 if (meanDistance <= eigenRecog.getRecognizeTreshold)
+                                                //if (meanDistance <= lbphRecog.getRecognizeTreshold)
                                                 {
-                                                    learnImage.Save(tempPath);
-                                                    mydb.InsertImageTraining(int.Parse(name), tempPath, false);
+                                                    learnImage.Save(folderPath + tempPath);
+                                                    Console.WriteLine(folderPath + tempPath);
+                                                    string dbPath = (folderPath + tempPath).Replace("\\","/");
+                                                    mydb.InsertImageTraining(int.Parse(name), dbPath, false);
                                                     if (mydb.getSpecifyImageCount(name) > 3)
                                                     {
                                                         mydb.DeleteOldestImage(name);
                                                     }
                                                     eigenRecog.reloadData();
+                                                    //lbphRecog.reloadData();
                                                     learningTag = false;
                                                     Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
                                                 }
@@ -518,8 +557,10 @@ namespace EMGUCV
                                     {
                                         Console.WriteLine("recognizing...");
                                         matchedResult = eigenRecog.Recognise(imageroi);
+                                        //matchedResult = lbphRecog.Recognise(imageroi);
                                         Console.WriteLine("Result:" + matchedResult + "\n");
-                                        File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
+                                        //Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
+                                        File.AppendAllText(@folderPath+logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
                                         {
@@ -563,15 +604,40 @@ namespace EMGUCV
 
         private void button3_Click(object sender, EventArgs e)
         {
-            
 
-            Application.Idle -= ProcessFrame;
-            Application.Idle -= runningFrame;
-            ReleaseData();
-            FormManualTrain frmManTrain = new FormManualTrain(this);
-            frmManTrain.Show();
-            button1.Enabled = true;
-            this.Hide();
+            if (mydb.IsServerConnected())
+            {
+                Application.Idle -= ProcessFrame;
+                Application.Idle -= runningFrame;
+                ReleaseData();
+                FormManualTrain frmManTrain = new FormManualTrain(this);
+                frmManTrain.Show();
+                button1.Enabled = true;
+                this.Hide();
+            }
+            else
+            {
+                MessageBox.Show("Database not connect.");
+            }
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            string agreementText = "ข้อตกลงในการใช้ซอฟต์แวร์\n\nซอฟต์แวร์นี้เป็นผลงานที่พัฒนาขึ้นโดย นาย ณัฐพงษ์ ไทยอุบุญ และ นาย ปฐมพล สงวนพานิช  จาก สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง ภายใต้การดูแลของ \nผศ. ดร. ชุติเมษฏ์ ศรีนิลทา  ภายใต้โครงการ ระบบตรวจสอบใบหน้าเพื่อยืนยันตัวบุคคล \nซึ่งสนับสนุนโดย ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ โดยมีวัตถุประสงค์เพื่อส่งเสริมให้นักเรียนและนักศึกษาได้เรียนรู้และฝึกทักษะในการพัฒนาซอฟต์แวร์ ลิขสิทธิ์ของซอฟต์แวร์นี้จึงเป็นของผู้พัฒนา ซึ่งผู้พัฒนาได้อนุญาตให้ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ เผยแพร่ซอฟต์แวร์นี้ตาม “ต้นฉบับ” โดยไม่มีการแก้ไขดัดแปลงใดๆ ทั้งสิ้น ให้แก่บุคคลทั่วไปได้ใช้เพื่อประโยชน์ส่วนบุคคลหรือประโยชน์ทางการศึกษาที่ไม่มีวัตถุประสงค์ในเชิงพาณิชย์ โดยไม่คิดค่าตอบแทนการใช้ซอฟต์แวร์ ดังนั้น ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ จึงไม่มีหน้าที่ในการดูแล บำรุงรักษา จัดการอบรมการใช้งาน หรือพัฒนาประสิทธิภาพซอฟต์แวร์ รวมทั้งไม่รับรองความถูกต้องหรือประสิทธิภาพการทำงานของซอฟต์แวร์ ตลอดจนไม่รับประกันความเสียหายต่างๆ อันเกิดจากการใช้ซอฟต์แวร์นี้ทั้งสิ้น";
+            MessageBox.Show(agreementText);
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog b = new FolderBrowserDialog();
+            DialogResult r = b.ShowDialog();
+            if (r == DialogResult.OK) // Test result.
+            {
+                folderPath = b.SelectedPath;
+                Console.WriteLine(folderPath);
+                File.WriteAllText(@"setting.txt", folderPath);
+                MessageBox.Show("Path is at "+folderPath);
+            }
         }
 
         

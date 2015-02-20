@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -21,7 +22,7 @@ namespace EMGUCV
         Image<Gray, byte> loadImage;
 
         private Form1 _form1;
-        
+
         
         private HaarCascade face;
         private CascadeClassifier eyeWithGlass;
@@ -29,7 +30,8 @@ namespace EMGUCV
         private int ROIheight = 175;
         private Size minEye;
         private Size maxEye;
-        private string tempPath = "E:/Images/tmp.jpg";
+        private string tempPath = "\\tmp.jpg";
+        private string folderPath = "";
         private DBConn mydb;
         private Classifier_Train eigenRecog;
         private MCvFont font;
@@ -49,19 +51,47 @@ namespace EMGUCV
             minEye = new Size(10, 10);
             maxEye = new Size(225, 225);
             font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
+            if (File.ReadAllText("setting.txt") != null)
+            {
+                folderPath = File.ReadAllText("setting.txt");
+            }
+            else
+            {
+                FolderBrowserDialog b = new FolderBrowserDialog();
+                b.Description = "Please select your installation path";
+                DialogResult r = b.ShowDialog();
+                if (r == DialogResult.OK) // Test result.
+                {
+                    folderPath = b.SelectedPath;
+                    Console.WriteLine(folderPath);
+                    File.WriteAllText(@"setting.txt", folderPath);
+                    MessageBox.Show("Path is at " + folderPath);
+                }
+            }
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
             string folderPath = "";
+            browseImage.Title = "Please select 640 x 480 pixel Image or smaller";
             DialogResult result = browseImage.ShowDialog();
+            
             if (result == DialogResult.OK) // Test result.
             {
                 folderPath = browseImage.FileName;
+                Console.WriteLine(folderPath);
+                Image<Gray,byte> receiveImage = new Image<Gray,byte>(folderPath);
+                if (receiveImage.Width <= 640 && receiveImage.Height <= 480)
+                {
+                    loadImage = receiveImage;
+                    imageBox1.Image = loadImage;
+                }
+                else
+                {
+                    MessageBox.Show("Please select image that smaller than 640x480 pixel");
+                }          
             }
-            Console.WriteLine(folderPath);
-            loadImage = new Image<Gray, byte>(folderPath).Resize(640,480,INTER.CV_INTER_CUBIC);
-            imageBox1.Image = loadImage;
+            
         }
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -130,8 +160,9 @@ namespace EMGUCV
                                     imageBox7.Image = cropimage;     //line 2
 
 
-                                    cropimage.Save(tempPath);
-                                    mydb.InsertImageTraining(newid, tempPath, true);
+                                    cropimage.Save(folderPath + tempPath);
+                                    string dbPath = (folderPath + tempPath).Replace("\\","/");
+                                    mydb.InsertImageTraining(newid, dbPath, true);
 
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
