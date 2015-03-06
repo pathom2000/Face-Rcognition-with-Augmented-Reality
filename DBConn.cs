@@ -55,6 +55,10 @@ namespace EMGUCV
                 }
             }
         }
+        public string getConnectionString
+        {
+            get { return connectionString; }
+        }
         //open connection to database
         private bool OpenConnection()
         {
@@ -101,7 +105,29 @@ namespace EMGUCV
                 return false;
             }
         }
+        public int[] getAllUserID()
+        {
+            string query = "select userid from userprofile;";
+            List<int> retval = new List<int>();
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
 
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                while (rdr.Read()){ 
+                    retval.Add(rdr.GetInt32(0));
+                }
+                //close connection
+                this.CloseConnection();
+                return retval.ToArray();
+            }
+            return null;
+        }
         //Insert statement
         public void InsertImageTraining(int Labelname,string TrainedImagePath,bool IsOriginal)
         {
@@ -169,6 +195,80 @@ namespace EMGUCV
             }
             return 0;
         }
+        public bool checkUserProfile(string userName, string userSurname)
+        {
+            int retval = 0;
+            string query = "select count(name) from userprofile where name = '" + userName + "' and surname = '" + userSurname + "';";
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                rdr.Read();
+
+                retval = rdr.GetInt32(0);
+                if (retval >= 1)
+                {
+                    this.CloseConnection();
+                    return false;
+                }
+                else
+                {
+                    this.CloseConnection();
+                    return true;
+                }
+
+                //close connection
+                
+                
+            }
+            return false;
+        }
+        public Image<Gray, byte>[] getUserImage(string userid)
+        {
+            Image<Gray, byte> addimage;
+            string query = "select image,length(image) as filesize from faceimage where userid = "+ userid;
+            List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
+            Debug.WriteLine(query);
+            byte[] temp;
+            Int32 Filesize;
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                while (rdr.Read())
+                {
+                    Filesize = rdr.GetInt32("filesize");
+
+                    temp = new byte[Filesize];
+
+                    rdr.GetBytes(rdr.GetOrdinal("image"), 0, temp, 0, Filesize);
+                    MemoryStream stream = new MemoryStream(temp);
+
+                    Image imtemp = Image.FromStream(stream);
+
+                    addimage = new Image<Gray, byte>(new Bitmap(imtemp));
+
+                    retval.Add(addimage);
+                }
+
+
+
+
+                //close connection
+                this.CloseConnection();
+                return retval.ToArray();
+            }
+            return null;
+        }
         public void DeleteUser(int userID)
         {
 
@@ -185,6 +285,59 @@ namespace EMGUCV
 
                 //close connection
                 this.CloseConnection();
+            }
+        }
+        public void DeleteAllUserImage(int userID)
+        {
+
+            string query = "DELETE from faceimage WHERE userid ='" + userID + "';";
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+        }
+        public void DeleteUserImage(string userID,int position)
+        {
+            string serrogate = "";
+            string query1 = "select idserrogate from faceimage where userid = '" + userID + "' limit " +position+",1";
+            
+            Console.WriteLine(query1);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query1, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                rdr.Read();
+
+                serrogate = rdr.GetInt32(0).ToString();
+                rdr.Close();
+                string query2 = "DELETE from faceimage WHERE idserrogate =" + serrogate;
+                //create command and assign the query and connection from the constructor
+                if (!serrogate.Equals(""))
+                {
+                    Console.WriteLine(query2);
+                    MySqlCommand cmd2 = new MySqlCommand(query2, connection);
+
+                    //Execute command
+                    cmd2.ExecuteNonQuery();
+
+                    //close connection
+                    this.CloseConnection();
+                }
+                
             }
         }
         public Int32 getImageCount()

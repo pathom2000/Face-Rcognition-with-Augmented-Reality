@@ -31,6 +31,7 @@ namespace EMGUCV
         private MCvFont fontbig;
         private MCvFont fontverybig;
         private Stopwatch stopWatch = new Stopwatch();
+        //private Stopwatch ARtimer = new Stopwatch();
         private Capture capture;
         private HaarCascade face;
         private HaarCascade calcface;
@@ -58,6 +59,7 @@ namespace EMGUCV
 
         private int maxImageCount = 21;
         private Classifier_Train eigenRecog;
+        //private Classifier_Fisher lbphRecog;
         private CascadeClassifier eyeWithGlass;
         private CascadeClassifier nose;
         private CascadeClassifier mouth;
@@ -141,6 +143,7 @@ namespace EMGUCV
                 {
                     //Console.WriteLine(mydb.getUserData("54010001"));
                     eigenRecog = new Classifier_Train();
+                    //lbphRecog = new Classifier_Fisher();
                     capture = new Capture();
                     Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
                     Application.Idle += new EventHandler(ProcessFrame);
@@ -150,6 +153,7 @@ namespace EMGUCV
                     button1.Text = "STOP RECOGNIZE";
                     button2.Enabled = false;
                     button3.Enabled = false;
+                    button6.Enabled = false;
                     recogButtonState = true;
                 }
                 else
@@ -166,11 +170,13 @@ namespace EMGUCV
                 imageFrame = null;
                 realfaceRectangle = Rectangle.Empty;
                 button1.Text = "START RECOGNIZE";
+                ARDisplayFlag = false;
                 recogButtonState = false;
                 label2.Text = "Idle";
                 progressBar1.Value = 0;
                 button2.Enabled = true;
                 button3.Enabled = true;
+                button6.Enabled = true;
                 capture.Dispose();
             }
             
@@ -209,7 +215,7 @@ namespace EMGUCV
             if (imageFrame != null)
             {
                 drawFrame = imageFrame.Copy();
-                
+
                 if (!realfaceRectangle.IsEmpty)
                 {
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
@@ -224,13 +230,16 @@ namespace EMGUCV
                         {
                             label2.Text = "Success";
                         }
-                        
+
+
                         runAR(name);
+                        
                     }
                     else
                     {
                         label2.Text = name;
                     }
+                    
                 }
                 else
                 {
@@ -247,6 +256,7 @@ namespace EMGUCV
                 imageBox1.Image = drawFrame;
                 
             }
+            
         }
 
         private void runAR(string nameID)
@@ -367,7 +377,7 @@ namespace EMGUCV
                 greyImage._SmoothGaussian(3);
                 //greyImage._EqualizeHist();
                 stopWatch.Start();
-                var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(200,200));
+                var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(300,300));
                 
                 if (faces.Length == 0)
                 {
@@ -492,7 +502,7 @@ namespace EMGUCV
                                 imageroi = greyImage.Copy();
                                 greyImage.ROI = new Rectangle();
 
-                                
+                                //if(lbphRecog.IsTrained)
                                 if (eigenRecog.IsTrained)
                                 {
                                     
@@ -520,21 +530,28 @@ namespace EMGUCV
                                         {
                                             learnImage = imageroi;
                                             matchedResult = eigenRecog.Recognise(learnImage);
+                                           // matchedResult = lbphRecog.Recognise(learnImage);
                                             string[] matchedData = matchedResult.Split(' ');
                                             if ((Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
+                                            //if ((Double.Parse(matchedData[1]) <= lbphRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
                                             {
                                                 meanDistance = recogDistanceResult.Sum() / maxImageCount;
-                                                if (meanDistance <= eigenRecog.getRecognizeTreshold)
+                                                if (meanDistance <= eigenRecog.getRecognizeTreshold/1.5)
+                                                //if (meanDistance <= lbphRecog.getRecognizeTreshold)
                                                 {
                                                     learnImage.Save(folderPath + tempPath);
                                                     Console.WriteLine(folderPath + tempPath);
                                                     string dbPath = (folderPath + tempPath).Replace("\\","/");
                                                     mydb.InsertImageTraining(int.Parse(name), dbPath, false);
-                                                    if (mydb.getSpecifyImageCount(name) > 3)
+                                                    //
+                                                    //auto train
+                                                    //
+                                                    if (mydb.getSpecifyImageCount(name) > 5)
                                                     {
                                                         mydb.DeleteOldestImage(name);
                                                     }
                                                     eigenRecog.reloadData();
+                                                    //lbphRecog.reloadData();
                                                     learningTag = false;
                                                     Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
                                                 }
@@ -551,8 +568,9 @@ namespace EMGUCV
                                     {
                                         Console.WriteLine("recognizing...");
                                         matchedResult = eigenRecog.Recognise(imageroi);
+                                        //matchedResult = lbphRecog.Recognise(imageroi);
                                         Console.WriteLine("Result:" + matchedResult + "\n");
-                                        Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
+                                        //Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
                                         File.AppendAllText(@folderPath+logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
@@ -630,6 +648,24 @@ namespace EMGUCV
                 Console.WriteLine(folderPath);
                 File.WriteAllText(@"setting.txt", folderPath);
                 MessageBox.Show("Path is at "+folderPath);
+            }
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            if (mydb.IsServerConnected())
+            {
+                Application.Idle -= ProcessFrame;
+                Application.Idle -= runningFrame;
+                ReleaseData();
+                FormManageData frmManData = new FormManageData(this);
+                frmManData.Show();
+                //button1.Enabled = true;
+                this.Hide();
+            }
+            else
+            {
+                MessageBox.Show("Database not connect.");
             }
         }
 

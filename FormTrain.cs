@@ -84,36 +84,44 @@ namespace EMGUCV
                     MessageBox.Show("Path is at " + folderPath);
                 }
             }
+            initializeCombobox();
             Application.Idle += new EventHandler(runningCamera);
             
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
-            string[] dateTemp = textBox3.Text.Split('/');
-            string dateConvert = "";
-            if (dateTemp.Length == 3)
-            {
-                string temp = dateTemp[2];
-                dateTemp[2] = dateTemp[0];
-                dateTemp[0] = temp;
-                dateConvert = String.Join("/", dateTemp);
-                mydb.InsertUserData(textBox1.Text, textBox2.Text, dateConvert, comboBox1.Text, comboBox2.Text);
-                newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateConvert, comboBox1.Text);
+            
+            string dateTemp = dateTimePicker1.Value.ToString("s");
+            
+            
+                if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
+                {
+                    mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
+                }
+
+                newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text);
                 if (newid != 0)
                 {
                     TrainFrame(newid);
                 }
-            }
-            else
-            {
-                MessageBox.Show("Incorrect date format"); 
-            }
+            
 
             
             
         }
-
+        private void initializeCombobox()
+        {
+            int[] allUserID = mydb.getAllUserID();
+            if (allUserID != null)
+            {
+                foreach(int item in allUserID){
+                comboBox3.Items.Add(item.ToString());
+                }
+            }
+            
+            
+        }
         private void button2_Click(object sender, EventArgs e)
         {
             Application.Idle -= runningCamera;
@@ -185,14 +193,15 @@ namespace EMGUCV
        
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            base.OnFormClosing(e);
-
-            if (e.CloseReason == CloseReason.WindowsShutDown) return;
             Application.Idle -= runningCamera;
             if (captureT != null)
             {
                 captureT.Dispose();
             }
+            base.OnFormClosing(e);
+            
+            if (e.CloseReason == CloseReason.WindowsShutDown) return;
+           
             _form1.Show();
             
         }
@@ -211,7 +220,7 @@ namespace EMGUCV
                     Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray, Byte>();
                     
 
-                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
+                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(300, 300));
                     if (faces.Length > 0)
                     {
                         foreach (var facecount in faces)
@@ -276,6 +285,26 @@ namespace EMGUCV
             {
                 // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
+        }
+
+        private void FormTrain_Load(object sender, EventArgs e)
+        {
+            // TODO: This line of code loads data into the 'facerecog.faceimage' table. You can move, or remove it, as needed.
+            this.faceimageTableAdapter.Fill(this.facerecog.faceimage);
+            // TODO: This line of code loads data into the 'facerecog.userprofile' table. You can move, or remove it, as needed.
+            this.userprofileTableAdapter.Fill(this.facerecog.userprofile);
+
+        }
+
+        private void comboBox3_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string selectData = mydb.getUserData(comboBox3.Text);
+            string[] splitData = selectData.Split(' ');
+            textBox1.Text = splitData[1];
+            textBox2.Text = splitData[2];
+            dateTimePicker1.Text = splitData[3];
+            comboBox1.Text = splitData[5];
+            comboBox2.Text = splitData[6];
         }
 
         

@@ -22,41 +22,41 @@ using System.Drawing;
 /// </summary>
 namespace EMGUCV
 {
-    public class Classifier_Train : IDisposable
+    public class Classifier_Fisher : IDisposable
     {
 
         #region Variables
 
         //Eigen
         MCvTermCriteria termCrit;
-        EigenObjectRecognizer recognizer;
-        
+        FaceRecognizer recognizer;
+
         //training variables
         Image<Gray, byte>[] trainingImages;//Images
         List<string> allname = new List<string>(); //labels
-        
+
         float Eigen_Distance = 0;
         string Eigen_label;
         int Eigen_threshold = 0;
-        int recognizeTreshold = 4000;
+        int recognizeTreshold = 5000;
         int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;
         bool _IsTrained = false;
-        DBConn mydb ;
+        DBConn mydb;
         #endregion
 
         #region Constructors
         /// <summary>
         /// Default Constructor, Looks in (Application.StartupPath + "\\TrainedFaces") for traing data.
         /// </summary>
-        public Classifier_Train()
+        public Classifier_Fisher()
         {
-            
+
             _IsTrained = LoadTrainingData();
         }
 
-        
+
         #endregion
 
         public bool IsTrained
@@ -78,33 +78,22 @@ namespace EMGUCV
                 return null;
             }
         }
-        
+
         public void reloadData()
         {
             _IsTrained = LoadTrainingData();
-        }
-        public Image<Gray,float>[] getEigenfaceArray()
-        {
-            if(_IsTrained){
-                return recognizer.EigenImages;
-            }
-            else
-            {
-                return null;
-            }
-        }
-       
+        }        
         public string Recognise(Image<Gray, byte> Input_image, int Eigen_Thresh = -1)
         {
             try
             {
-                
+
                 if (_IsTrained)
                 {
                     Set_Eigen_Threshold = recognizeTreshold;
-                    EigenObjectRecognizer.RecognitionResult ER = recognizer.Recognize(Input_image);
-                   
-                    if (ER == null)
+                    FaceRecognizer.PredictionResult ER = recognizer.Predict(Input_image);
+                    Console.WriteLine(ER.Label);
+                    if (ER.Label == -1)
                     {
                         Eigen_label = "UnknownNull";
                         Eigen_Distance = 0;
@@ -112,40 +101,30 @@ namespace EMGUCV
                     }
                     else
                     {
-                        Eigen_label = ER.Label;
-                        Eigen_Distance = ER.Distance;
+                        Eigen_label = allname[ER.Label];
+                        Eigen_Distance = (float)ER.Distance;
+
                         
-                        if (Eigen_Thresh > -1)
-                        {
-                            Eigen_threshold = Eigen_Thresh;
-                        }
-                        if (Eigen_Distance > Eigen_threshold)
-                        {
-                            return Eigen_label + " " + Eigen_Distance.ToString();
-                        }
-                            // 
-                        else
-                        {
-                            return "UnknownFace" + " " + Eigen_Distance.ToString();
-                        }
+                         return Eigen_label + " " + Eigen_Distance.ToString();
+                        
                     }
 
                 }
                 else return "";
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e);
                 return "";
             }
-            
+
         }
 
         public int Set_Eigen_Threshold
         {
             set
             {
-                 recognizer.EigenDistanceThreshold = value;
+                
             }
         }
 
@@ -179,34 +158,35 @@ namespace EMGUCV
             Error = null;
             GC.Collect();
         }
-        
-        
+
+
         private bool LoadTrainingData()
         {
             mydb = new DBConn();
-            allname = mydb.getLabelList();
+            allname = mydb.getLabelList();           
             trainingImages = mydb.getTrainedImageList();
-                
-                if (mydb.getImageCount() > 0)
+            int[] temp = Enumerable.Range(0,(allname.Count)).ToArray();
+            if (mydb.getImageCount() > 0)
+            {
+
+                if (trainingImages.Length != 0)
                 {
-                    
-                    if (trainingImages.Length != 0)
-                    {
-                        //set round and ...
-                        termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
-                         //Eigen face recognizer
-                        recognizer = new EigenObjectRecognizer(trainingImages, allname.ToArray(), maxRecognizeTreshold, ref termCrit);
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }                    
+                    //set round and ...
+                    //termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
+                    //Eigen face recognizer
+                    recognizer = new FisherFaceRecognizer(0,3200);//4000
+                    recognizer.Train(trainingImages, temp);
+                    return true;
                 }
                 else
                 {
                     return false;
-                }           
+                }
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }
