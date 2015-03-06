@@ -58,7 +58,6 @@ namespace EMGUCV
 
         private int maxImageCount = 21;
         private Classifier_Train eigenRecog;
-        private Classifier_LBPH lbphRecog;
         private CascadeClassifier eyeWithGlass;
         private CascadeClassifier nose;
         private CascadeClassifier mouth;
@@ -142,7 +141,6 @@ namespace EMGUCV
                 {
                     //Console.WriteLine(mydb.getUserData("54010001"));
                     eigenRecog = new Classifier_Train();
-                    //lbphRecog = new Classifier_LBPH();
                     capture = new Capture();
                     Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
                     Application.Idle += new EventHandler(ProcessFrame);
@@ -494,7 +492,7 @@ namespace EMGUCV
                                 imageroi = greyImage.Copy();
                                 greyImage.ROI = new Rectangle();
 
-                                //if(lbphRecog.IsTrained)
+                                
                                 if (eigenRecog.IsTrained)
                                 {
                                     
@@ -522,14 +520,11 @@ namespace EMGUCV
                                         {
                                             learnImage = imageroi;
                                             matchedResult = eigenRecog.Recognise(learnImage);
-                                            //matchedResult = lbphRecog.Recognise(learnImage);
                                             string[] matchedData = matchedResult.Split(' ');
                                             if ((Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
-                                            //if ((Double.Parse(matchedData[1]) <= lbphRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
                                             {
                                                 meanDistance = recogDistanceResult.Sum() / maxImageCount;
                                                 if (meanDistance <= eigenRecog.getRecognizeTreshold)
-                                                //if (meanDistance <= lbphRecog.getRecognizeTreshold)
                                                 {
                                                     learnImage.Save(folderPath + tempPath);
                                                     Console.WriteLine(folderPath + tempPath);
@@ -540,7 +535,6 @@ namespace EMGUCV
                                                         mydb.DeleteOldestImage(name);
                                                     }
                                                     eigenRecog.reloadData();
-                                                    //lbphRecog.reloadData();
                                                     learningTag = false;
                                                     Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
                                                 }
@@ -557,9 +551,8 @@ namespace EMGUCV
                                     {
                                         Console.WriteLine("recognizing...");
                                         matchedResult = eigenRecog.Recognise(imageroi);
-                                        //matchedResult = lbphRecog.Recognise(imageroi);
                                         Console.WriteLine("Result:" + matchedResult + "\n");
-                                        //Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
+                                        Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
                                         File.AppendAllText(@folderPath+logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
