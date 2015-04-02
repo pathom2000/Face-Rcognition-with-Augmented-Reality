@@ -104,9 +104,28 @@ namespace EMGUCV
         }
         private void button1_Click(object sender, EventArgs e)
         {
+            string dateTemp = dateTimePicker1.Value.ToString("s");
 
+
+            if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
+            {
+                mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
+            }
+
+            newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text);
+            if (newid != 0)
+            {
+                if (!TrainFrame(newid))
+                {
+                    mydb.DeleteUser(newid);
+                }
+                else
+                {
+                    MessageBox.Show("trainsuccess");
+                }
+            }
         }
-        private void TrainFrame(int newid)
+        private bool TrainFrame(int newid)
         {
             try
             {
@@ -144,41 +163,61 @@ namespace EMGUCV
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3 * betweeneLength);
 
-                                //imageFrameT.Draw(facecount.rect, new Bgr(Color.Red), 2);
-                                //imageFrameT.Draw(facecount.rect.Height + "," + facecount.rect.Width, ref font, new Point(facecount.rect.X - 2, facecount.rect.Y - 2), new Bgr(Color.LightGreen));
+                                
                                 loadImage.ROI = new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight));
-                                //CropFrame = greyImage.Copy();
-                                //pic.Add(CropFrame);
-
-                                //get bigger face in frame
-                                cropimage = loadImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                               
+                                cropimage = loadImage.Copy().Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                loadImage.ROI = Rectangle.Empty;
+                                loadImage.Draw(new Rectangle(new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y - neareyebrowpoint), new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight)),new Gray(0),2);
                                 if (!cropimage.Equals(darkimage))
                                 {
                                     cropimage._EqualizeHist();
-                                    //CvInvoke.cvSmooth(cropimage, cropimage, SMOOTH_TYPE.CV_GAUSSIAN, 1, 1, 1, 1);
-                                    //cropimage = eigenRecog.convertLBP(cropimage,1);
+                                    
                                     imageBox7.Image = cropimage;     //line 2
 
 
                                     cropimage.Save(folderPath + tempPath);
                                     string dbPath = (folderPath + tempPath).Replace("\\","/");
-                                    mydb.InsertImageTraining(newid, dbPath, true);
+                                    //mydb.InsertImageTraining(newid, dbPath, true);
 
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
+                                    imageBox1.Image = loadImage;
+                                    imageBox7.Image = cropimage;
+                                    return true;
                                     //Fish_Recog.reloadData();
+                                }
+                                else
+                                {
+                                    imageBox1.Image = loadImage;
+                                    imageBox7.Image = cropimage;
+                                    return false;
                                 }
 
                             }
-                            imageBox7.Image = cropimage;
+                            else
+                            {
+                                return false;
+                            }
+                            
                         }
                     }
+                    else
+                    {
+                        return false;
+                    }
                 }
+                else
+                {
+                    return false;
+                }
+
             }
             catch
             {
-                // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return false;
             }
+            return false;
         } 
     
         private void button2_Click(object sender, EventArgs e)
@@ -188,6 +227,8 @@ namespace EMGUCV
             _form1.Show();
             this.Close();
         }
+
+        
 
         
     }

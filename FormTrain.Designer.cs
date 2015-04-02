@@ -54,6 +54,7 @@
             this.faceimageBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.faceimageTableAdapter = new EMGUCV.facerecogTableAdapters.faceimageTableAdapter();
             this.label9 = new System.Windows.Forms.Label();
+            this.comboBox4 = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox7)).BeginInit();
             this.groupBox1.SuspendLayout();
@@ -75,9 +76,9 @@
             // button1
             // 
             this.button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button1.Location = new System.Drawing.Point(682, 192);
+            this.button1.Location = new System.Drawing.Point(785, 192);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(191, 34);
+            this.button1.Size = new System.Drawing.Size(94, 34);
             this.button1.TabIndex = 4;
             this.button1.Text = "TRAIN";
             this.button1.UseVisualStyleBackColor = true;
@@ -178,6 +179,7 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label7.ForeColor = System.Drawing.SystemColors.ControlText;
             this.label7.Location = new System.Drawing.Point(670, 271);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(66, 22);
@@ -284,11 +286,24 @@
             this.label9.TabIndex = 31;
             this.label9.Text = "Select by ID";
             // 
+            // comboBox4
+            // 
+            this.comboBox4.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBox4.FormattingEnabled = true;
+            this.comboBox4.Items.AddRange(new object[] {
+            "Train",
+            "Test"});
+            this.comboBox4.Location = new System.Drawing.Point(697, 200);
+            this.comboBox4.Name = "comboBox4";
+            this.comboBox4.Size = new System.Drawing.Size(60, 21);
+            this.comboBox4.TabIndex = 32;
+            // 
             // FormTrain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(899, 521);
+            this.Controls.Add(this.comboBox4);
             this.Controls.Add(this.label9);
             this.Controls.Add(this.comboBox3);
             this.Controls.Add(this.groupBox1);
@@ -300,7 +315,6 @@
             this.Controls.Add(this.imageBox1);
             this.Name = "FormTrain";
             this.Text = "FormTrain";
-            this.Load += new System.EventHandler(this.FormTrain_Load);
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox7)).EndInit();
             this.groupBox1.ResumeLayout(false);
@@ -341,5 +355,6 @@
         private System.Windows.Forms.BindingSource faceimageBindingSource;
         private facerecogTableAdapters.faceimageTableAdapter faceimageTableAdapter;
         private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.ComboBox comboBox4;
     }
 }

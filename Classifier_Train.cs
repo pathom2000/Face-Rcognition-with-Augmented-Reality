@@ -33,12 +33,12 @@ namespace EMGUCV
         
         //training variables
         Image<Gray, byte>[] trainingImages;//Images
-        List<string> allname = new List<string>(); //labels
+        int[] allname; 
         
         float Eigen_Distance = 0;
         string Eigen_label;
-        int Eigen_threshold = 0;
-        int recognizeTreshold = 4000;
+        
+        int recognizeTreshold = 8000;
         int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;
@@ -115,11 +115,8 @@ namespace EMGUCV
                         Eigen_label = ER.Label;
                         Eigen_Distance = ER.Distance;
                         
-                        if (Eigen_Thresh > -1)
-                        {
-                            Eigen_threshold = Eigen_Thresh;
-                        }
-                        if (Eigen_Distance > Eigen_threshold)
+                        
+                        if (Eigen_Distance < recognizeTreshold)
                         {
                             return Eigen_label + " " + Eigen_Distance.ToString();
                         }
@@ -184,7 +181,8 @@ namespace EMGUCV
         private bool LoadTrainingData()
         {
             mydb = new DBConn();
-            allname = mydb.getLabelList();
+            allname = mydb.getAllImageID();
+            string[] allname_st = allname.Select(x => x.ToString()).ToArray();
             trainingImages = mydb.getTrainedImageList();
                 
                 if (mydb.getImageCount() > 0)
@@ -195,7 +193,7 @@ namespace EMGUCV
                         //set round and ...
                         termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
                          //Eigen face recognizer
-                        recognizer = new EigenObjectRecognizer(trainingImages, allname.ToArray(), maxRecognizeTreshold, ref termCrit);
+                        recognizer = new EigenObjectRecognizer(trainingImages, allname_st, maxRecognizeTreshold, ref termCrit);
                         return true;
                     }
                     else

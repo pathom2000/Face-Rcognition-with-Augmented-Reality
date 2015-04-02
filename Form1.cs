@@ -34,7 +34,7 @@ namespace EMGUCV
         //private Stopwatch ARtimer = new Stopwatch();
         private Capture capture;
         private HaarCascade face;
-        private HaarCascade calcface;
+        
 
         private List<string> recogNameResult;
         private List<double> recogDistanceResult;
@@ -57,60 +57,71 @@ namespace EMGUCV
 
         private Size ROIFaceSize = new Size(140,175);
 
-        private int maxImageCount = 21;
+        private int maxImageCount;
         private Classifier_Train eigenRecog;
-        //private Classifier_Fisher lbphRecog;
-        private CascadeClassifier eyeWithGlass;
-        private CascadeClassifier nose;
-        private CascadeClassifier mouth;
+        //private Classifier_Fisher fishRecog;
+        private CascadeClassifier eyeWithGlass;     
         private Size minEye;
-        private Size maxEye;
-        private Size minNose;
-        private Size maxNose;
-        private Size minMouth;
-        private Size maxMouth;
+        private Size maxEye;        
         private int ROIwidth = 140;
         private int ROIheight = 175;
         private bool learningTag = true;
         
 
         private string name = "Processing...";
+        private string userid = "Processing...";
         private string tempPath = "\\tmp.jpg";
+        private string tempPath2 = "\\tmp2.jpg";
         private string logFolder = "\\log\\";
         private string logName;
         private string folderPath = "";
         
-        private Size frameSize = new Size(400, 400);
+        private Size frameSize = new Size(475, 220);
         private Point framePoint = new Point(30, 30);
         Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
         private string txtAR;
         private bool ARDisplayFlag = false;
         private bool recogButtonState = false;
+        private bool timestampFlag = true;
         int frameCount = 0;
         bool countFlag = true;
+
+        Point[] pL = new Point[3];
+        Point[] pR = new Point[3];
+        int y0 = 105;
+        int y1 = 174;
+        int x0 = 0;
+        int x1 = 34;
+        int x2 = 105;
+        int x3 = 139;
+                
         public Form1()
         {
             InitializeComponent();
             
-            face = new HaarCascade("haarcascade_frontalface_default.xml");
-            calcface = new HaarCascade("haarcascade_frontalface_default.xml");
+            face = new HaarCascade("haarcascade_frontalface_default.xml");           
             eyeWithGlass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
-            nose = new CascadeClassifier("haarcascade_mcs_nose.xml");
-            mouth = new CascadeClassifier("haarcascade_mcs_mouth.xml");
 
             mydb = new DBConn();
-
+            maxImageCount = (int)Math.Sqrt(mydb.getImageCount());
+            if (maxImageCount % 2 == 0)
+            {
+                maxImageCount--;
+                if(maxImageCount > 21){
+                    maxImageCount = 21;
+                }
+            }
+            progressBar1.Maximum = maxImageCount;
             recogNameResult = new List<string>();
             recogDistanceResult = new List<double>();
+
             minEye = new Size(10, 10);
             maxEye = new Size(225, 225);
-            minNose = new Size(10, 10);
-            maxNose = new Size(225, 225);
-            minMouth = new Size(10, 10);
-            maxMouth = new Size(225, 225);
+            
             font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.4d, 0.4d);
             fontbig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.6d, 0.6d);
             fontverybig = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.8d, 0.8d); 
+
             //log record
             DateTime now = DateTime.Now;
             logName = now.ToString();
@@ -132,7 +143,13 @@ namespace EMGUCV
                     File.WriteAllText(@"setting.txt", folderPath);
                     MessageBox.Show("Path is at " + folderPath);
                 }
-            }                       
+            }
+            pL[0] = new Point(x0, y0);
+            pL[1] = new Point(x0, y1);
+            pL[2] = new Point(x1, y1);
+            pR[0] = new Point(x3, y0);
+            pR[1] = new Point(x3, y1);
+            pR[2] = new Point(x2, y1);        
         }
      
         private void button1_Click(object sender, EventArgs e)
@@ -143,7 +160,7 @@ namespace EMGUCV
                 {
                     //Console.WriteLine(mydb.getUserData("54010001"));
                     eigenRecog = new Classifier_Train();
-                    //lbphRecog = new Classifier_Fisher();
+                    //fishRecog = new Classifier_Fisher();
                     capture = new Capture();
                     Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
                     Application.Idle += new EventHandler(ProcessFrame);
@@ -152,7 +169,7 @@ namespace EMGUCV
 
                     button1.Text = "STOP RECOGNIZE";
                     button2.Enabled = false;
-                    button3.Enabled = false;
+                    //button3.Enabled = false;
                     button6.Enabled = false;
                     recogButtonState = true;
                 }
@@ -175,15 +192,13 @@ namespace EMGUCV
                 label2.Text = "Idle";
                 progressBar1.Value = 0;
                 button2.Enabled = true;
-                button3.Enabled = true;
+                //button3.Enabled = true;
                 button6.Enabled = true;
                 capture.Dispose();
             }
             
                 
-        }
-        
-              
+        }     
         private void button2_Click(object sender, EventArgs e)
         {
             if (mydb.IsServerConnected())
@@ -201,8 +216,59 @@ namespace EMGUCV
             {
                 MessageBox.Show("Database not connect.");
             }
-        }    
-        
+        }
+        private void button3_Click(object sender, EventArgs e)
+        {
+
+            if (mydb.IsServerConnected())
+            {
+                Application.Idle -= ProcessFrame;
+                Application.Idle -= runningFrame;
+                ReleaseData();
+                FormManualTrain frmManTrain = new FormManualTrain(this);
+                frmManTrain.Show();
+                button1.Enabled = true;
+                this.Hide();
+            }
+            else
+            {
+                MessageBox.Show("Database not connect.");
+            }
+        }
+        private void button4_Click(object sender, EventArgs e)
+        {
+            string agreementText = "ข้อตกลงในการใช้ซอฟต์แวร์\n\nซอฟต์แวร์นี้เป็นผลงานที่พัฒนาขึ้นโดย นาย ณัฐพงษ์ ไทยอุบุญ และ นาย ปฐมพล สงวนพานิช  จาก สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง ภายใต้การดูแลของ \nผศ. ดร. ชุติเมษฏ์ ศรีนิลทา  ภายใต้โครงการ ระบบตรวจสอบใบหน้าเพื่อยืนยันตัวบุคคล \nซึ่งสนับสนุนโดย ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ โดยมีวัตถุประสงค์เพื่อส่งเสริมให้นักเรียนและนักศึกษาได้เรียนรู้และฝึกทักษะในการพัฒนาซอฟต์แวร์ ลิขสิทธิ์ของซอฟต์แวร์นี้จึงเป็นของผู้พัฒนา ซึ่งผู้พัฒนาได้อนุญาตให้ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ เผยแพร่ซอฟต์แวร์นี้ตาม “ต้นฉบับ” โดยไม่มีการแก้ไขดัดแปลงใดๆ ทั้งสิ้น ให้แก่บุคคลทั่วไปได้ใช้เพื่อประโยชน์ส่วนบุคคลหรือประโยชน์ทางการศึกษาที่ไม่มีวัตถุประสงค์ในเชิงพาณิชย์ โดยไม่คิดค่าตอบแทนการใช้ซอฟต์แวร์ ดังนั้น ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ จึงไม่มีหน้าที่ในการดูแล บำรุงรักษา จัดการอบรมการใช้งาน หรือพัฒนาประสิทธิภาพซอฟต์แวร์ รวมทั้งไม่รับรองความถูกต้องหรือประสิทธิภาพการทำงานของซอฟต์แวร์ ตลอดจนไม่รับประกันความเสียหายต่างๆ อันเกิดจากการใช้ซอฟต์แวร์นี้ทั้งสิ้น";
+            MessageBox.Show(agreementText);
+        }
+        private void button5_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog b = new FolderBrowserDialog();
+            DialogResult r = b.ShowDialog();
+            if (r == DialogResult.OK) // Test result.
+            {
+                folderPath = b.SelectedPath;
+                Console.WriteLine(folderPath);
+                File.WriteAllText(@"setting.txt", folderPath);
+                MessageBox.Show("Path is at " + folderPath);
+            }
+        }
+        private void button6_Click(object sender, EventArgs e)
+        {
+            if (mydb.IsServerConnected())
+            {
+                Application.Idle -= ProcessFrame;
+                Application.Idle -= runningFrame;
+                ReleaseData();
+                FormManageData frmManData = new FormManageData(this);
+                frmManData.Show();
+                //button1.Enabled = true;
+                this.Hide();
+            }
+            else
+            {
+                MessageBox.Show("Database not connect.");
+            }
+        }
         private void ReleaseData()
         {
             if (capture != null)
@@ -220,24 +286,28 @@ namespace EMGUCV
                 {
                     drawFrame.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
                     //drawFrame.Draw(faceRectangle, new Bgr(Color.LimeGreen), 2);
-                    drawFrame.Draw(name, ref fontbig, facePosition, new Bgr(Color.Red));
-                    if (name != "Processing...")
+                    drawFrame.Draw(userid, ref fontbig, facePosition, new Bgr(Color.Red));
+                    if (userid != "Processing...")
                     {
-                        if(name.Equals("UnknownNull")){
+                        if (userid.Equals("0"))
+                        {
+                            label2.ForeColor = Color.Red;
                             label2.Text = "Fail";
                         }
                         else
                         {
+                            label2.ForeColor = Color.ForestGreen;
                             label2.Text = "Success";
                         }
 
 
-                        runAR(name);
+                        runAR(userid);
                         
                     }
                     else
                     {
-                        label2.Text = name;
+                        label2.ForeColor = Color.Blue;
+                        label2.Text = userid;
                     }
                     
                 }
@@ -258,11 +328,10 @@ namespace EMGUCV
             }
             
         }
-
         private void runAR(string nameID)
         {
             Rectangle drawArea = new Rectangle(framePoint, frameSize);
-            Rectangle drawArea2 = new Rectangle(framePoint, new Size(140, 175));
+            Rectangle drawArea2 = new Rectangle(new Point(framePoint.X+15,framePoint.Y+15), new Size(140, 175));
             Image<Bgr, Byte> opacityOverlay = new Image<Bgr, Byte>(drawArea.Width, drawArea.Height, new Bgr(Color.Black));
             drawFrame.ROI = drawArea;
             opacityOverlay.CopyTo(drawFrame);
@@ -277,7 +346,7 @@ namespace EMGUCV
             ////***********TEXT***********
             if (!ARDisplayFlag)
             {
-                if (!nameID.Equals("UnknownNull"))
+                if (!nameID.Equals("0"))
                 {
                     txtAR = mydb.getUserData(nameID);
                 }
@@ -289,7 +358,7 @@ namespace EMGUCV
             //txtAR = "abc def ghi";
             
             int tmpY = framePoint.Y;
-            if (!nameID.Equals("UnknownNull"))
+            if (!nameID.Equals("0"))
             {
                 string[] txtSet = txtAR.Split(' ');
                 for (int i = 0; i < txtSet.Length; i++)
@@ -349,34 +418,22 @@ namespace EMGUCV
             ////***********Picture***********
                 if (!ARDisplayFlag)
                 {
-                    imgAR = mydb.getResultImage(nameID);
+                    imgAR = mydb.getResultImage(name);
                 }
             Image<Bgr, Byte> imageSrc = imgAR.Convert<Bgr,byte>();
             drawFrame.ROI = drawArea2;
             CvInvoke.cvCopy(imageSrc, drawFrame, IntPtr.Zero);
             drawFrame.ROI = Rectangle.Empty;
             ARDisplayFlag = true;
-        }
-
-        /*private void runningCropFrame(object sender, EventArgs arg)
-        {
-            
-            if (imageroi != null)
-            {
-                imageBox2.Image = imageroi;
-                
-            }
-        }*/
+        }        
         private void ProcessFrame(object sender, EventArgs arg)
         {                   
             if(imageFrame != null){
                 
                 Image<Gray, byte> greyImage = imageFrame.Copy().Convert<Gray, byte>();
+                greyImage = greyImage.SmoothMedian(3);
                 
-                
-                greyImage._SmoothGaussian(3);
-                //greyImage._EqualizeHist();
-                stopWatch.Start();
+                //stopWatch.Start();
                 var faces = face.Detect(greyImage,1.3,6,HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT,new Size(120,120),new Size(300,300));
                 
                 if (faces.Length == 0)
@@ -403,7 +460,7 @@ namespace EMGUCV
                         int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
                         //int nosepoint =
                         int xx = (int)((5.0 / 12.0) * betweeneLength);
-                        int xxx = (int)((1.5 / 8.0) * betweeneLength);
+                        int margin = (int)((1.5 / 8.0) * betweeneLength);
 
                         int x1 = (int)((1.0 / 16.0) * betweeneLength);
 
@@ -424,9 +481,9 @@ namespace EMGUCV
 
                         p[1] = new Point(eyeObjects[0].X + (eyeObjects[0].Width / 2), eyeObjects[0].Y - forheadpeakpeak);
                         p[2] = new Point(eyeObjects[0].X - x1, eyeObjects[0].Y - forheadbelowpeak);
-                        p[3] = new Point(lefteyebrowpoint - xxx, eyeObjects[0].Y + (eyeObjects[0].Height/6));
+                        p[3] = new Point(lefteyebrowpoint - margin, eyeObjects[0].Y + (eyeObjects[0].Height/6));
 
-                        p[4] = new Point(righteyebrowpoint + xxx, eyeObjects[0].Y + (eyeObjects[0].Height /6));
+                        p[4] = new Point(righteyebrowpoint + margin, eyeObjects[0].Y + (eyeObjects[0].Height /6));
                         p[5] = new Point(righteyebrowpoint + x1, eyeObjects[0].Y - forheadbelowpeak);
                         p[6] = new Point(eyeObjects[1].X + (eyeObjects[1].Width / 2), eyeObjects[0].Y - forheadpeakpeak);
 
@@ -434,8 +491,8 @@ namespace EMGUCV
                         //imageFrame.Draw(new CircleF(new PointF(middleposition,eyeObjects[0].Y+ foreheadpoint), 1), new Bgr(Color.Yellow), 2);
                         //imageFrame.Draw(new CircleF(new PointF(middleposition,eyeObjects[0].Y - forheadpeak), 1), new Bgr(Color.Yellow), 2);
                         //imageFrame.Draw(new CircleF(new PointF(middleposition, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.Gold), 2);
-                        //imageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint - xxx, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
-                        //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + xxx, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint - margin, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
+                        //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint + margin, eyeObjects[0].Y), 1), new Bgr(Color.AliceBlue), 2);
                         //imageFrame.Draw(new CircleF(new PointF(lefteyebrowpoint, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
                         //imageFrame.Draw(new CircleF(new PointF(righteyebrowpoint, eyeObjects[0].Y - neareyebrowpoint), 1), new Bgr(Color.LimeGreen), 2);
                         //imageFrame.DrawPolyline(p,true, new Bgr(Color.Azure), 2);
@@ -451,10 +508,13 @@ namespace EMGUCV
                     else //not see eye in frame
                     {
                         name = "Processing...";
+                        userid = "Processing...";
                         learningTag = true;
                         ARDisplayFlag = false;
+                        timestampFlag = true;
                         faceRectangle = Rectangle.Empty;
                         realfaceRectangle = Rectangle.Empty;
+                        label2.ForeColor = Color.DeepSkyBlue;
                         label2.Text = "Idle";
                         progressBar1.Value = 0;
                         recogNameResult.Clear();
@@ -488,27 +548,27 @@ namespace EMGUCV
 
                                 int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
                                 int lefteyebrowpoint = eyeObjects[0].X;//
-                                int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
-                                int xxx = (int)((1.5 / 8.0) * betweeneLength);
+                                int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
+                                int margin = (int)((1.5 / 8.0) * betweeneLength);
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3*betweeneLength);
 
-                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - xxx, facePosition.Y+ eyeObjects[0].Y - neareyebrowpoint);
-                                realfaceRectangleSize = new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight);
+                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y+ eyeObjects[0].Y - neareyebrowpoint);
+                                realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
                                 realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
-
 
                                 greyImage.ROI = realfaceRectangle;
                                 imageroi = greyImage.Copy();
-                                greyImage.ROI = new Rectangle();
+                                greyImage.ROI = Rectangle.Empty;
 
-                                //if(lbphRecog.IsTrained)
                                 if (eigenRecog.IsTrained)
                                 {
                                     
                                     imageroi._EqualizeHist();
                                     imageroi = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-                                    
+                                    Image<Gray, byte> plainImage = imageroi.Copy();
+                                    imageroi.FillConvexPoly(pL, new Gray(128));
+                                    imageroi.FillConvexPoly(pR, new Gray(128));
                                     //find the most relative face
                                     progressBar1.Value = recogNameResult.Count;
                                     if (recogNameResult.Count == maxImageCount)
@@ -516,6 +576,8 @@ namespace EMGUCV
                                         Console.WriteLine("Processing...");
                                         int max = 0;
                                         string mostFace = "";
+                                        float confident = 0;
+                                        double euclidVal = 0;
                                         foreach (string value in recogNameResult.Distinct())
                                         {
                                             Console.WriteLine("\"{0}\" occurs {1} time(s).\n", value, recogNameResult.Count(v => v == value));
@@ -526,52 +588,75 @@ namespace EMGUCV
                                             }
                                         }
                                         name = mostFace;
+                                        userid = mydb.getUserIdFromSerrogate(name);
                                         if (learningTag && !(name.Equals("UnknownNull") || name.Equals("UnknownFace")))
                                         {
                                             learnImage = imageroi;
                                             matchedResult = eigenRecog.Recognise(learnImage);
-                                           // matchedResult = lbphRecog.Recognise(learnImage);
+                                            //matchedResult = fishRecog.Recognise(learnImage);
                                             string[] matchedData = matchedResult.Split(' ');
                                             if ((Double.Parse(matchedData[1]) <= eigenRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
-                                            //if ((Double.Parse(matchedData[1]) <= lbphRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
+                                            //if ((Double.Parse(matchedData[1]) <= fishRecog.getRecognizeTreshold) && (Double.Parse(matchedData[1]) != 0))
                                             {
-                                                meanDistance = recogDistanceResult.Sum() / maxImageCount;
-                                                if (meanDistance <= eigenRecog.getRecognizeTreshold/1.5)
-                                                //if (meanDistance <= lbphRecog.getRecognizeTreshold)
-                                                {
-                                                    learnImage.Save(folderPath + tempPath);
-                                                    Console.WriteLine(folderPath + tempPath);
-                                                    string dbPath = (folderPath + tempPath).Replace("\\","/");
-                                                    mydb.InsertImageTraining(int.Parse(name), dbPath, false);
-                                                    //
-                                                    //auto train
-                                                    //
-                                                    if (mydb.getSpecifyImageCount(name) > 5)
-                                                    {
-                                                        mydb.DeleteOldestImage(name);
+                                                
+                                                int ItemIndex = 0;
+                                                List<double> recogResultSum = new List<double>();
+                                                foreach(var item in recogNameResult){
+                                                    if (mydb.getUserIdFromSerrogate(item).Equals(userid) && !item.Equals("UnknownNull")){
+                                                        recogResultSum.Add(recogDistanceResult[ItemIndex]); 
                                                     }
-                                                    eigenRecog.reloadData();
-                                                    //lbphRecog.reloadData();
-                                                    learningTag = false;
-                                                    Console.WriteLine("Learning:" + name + "  Distance:" + meanDistance);
+                                                    ItemIndex++;
                                                 }
-                                                else
+                                                meanDistance = recogResultSum.Sum() / recogResultSum.Count;
+                                                euclidVal = falsePositiveCheck(mydb.getComputeResultImage(name), imageroi.Copy());
+                                                if (euclidVal < 9000)
                                                 {
-                                                    Console.WriteLine("Distance:" + meanDistance + "\n");
+                                                    confident = ((float)recogResultSum.Count / (float)maxImageCount) * 100;
+                                                    if (confident >= 80)
+                                                    //if (meanDistance <= fishRecog.getRecognizeTreshold)
+                                                    {
+                                                        learnImage.Save(folderPath + tempPath);
+                                                        plainImage.Save(folderPath + tempPath2);
+                                                        Console.WriteLine(folderPath + tempPath);
+                                                        string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                                                        string dbPathPlain = (folderPath + tempPath2).Replace("\\", "/");
+                                                        mydb.InsertImageTraining(int.Parse(userid), dbPathPlain, dbPath, false);
+                                                        //
+                                                        //auto train
+                                                        //
+                                                        if (mydb.getSpecifyImageCount(userid) > 5)
+                                                        {
+                                                            mydb.DeleteOldestImage(userid);
+                                                        }
+                                                        eigenRecog.reloadData();
+                                                        //fishRecog.reloadData();
+                                                        learningTag = false;
+                                                        Console.WriteLine("Learning:" + userid + "  Distance:" + meanDistance);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine("Distance:" + meanDistance + "\n");
+                                                    }
                                                 }
+                                                
                                             }
-
+                                            if(timestampFlag){
+                                                Image<Gray, byte> resultImage = imageroi;
+                                                resultImage.Save(folderPath + tempPath);
+                                                Console.WriteLine(folderPath + tempPath);
+                                                string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                                                mydb.InsertTimestamp(userid, Environment.MachineName, confident.ToString(), dbPath, meanDistance.ToString(), euclidVal.ToString());
+                                                timestampFlag = false;
+                                            }
+                                            
                                         }
 
                                     }
                                     else
                                     {
                                         Console.WriteLine("recognizing...");
-                                        matchedResult = eigenRecog.Recognise(imageroi);
-                                        //matchedResult = lbphRecog.Recognise(imageroi);
+                                        matchedResult = eigenRecog.Recognise(imageroi); //get serro+distance                                       
                                         Console.WriteLine("Result:" + matchedResult + "\n");
-                                        //Console.WriteLine("path"+folderPath+logFolder + logName + "_ver1.0.txt");
-                                        File.AppendAllText(@folderPath+logFolder + logName + "_ver1.0.txt", "Result:" + matchedResult + "\r\n");
                                         string[] matchedData = matchedResult.Split(' ');
                                         if (!matchedResult[0].Equals("UnknownNull") && !matchedResult[0].Equals("UnknownFace"))
                                         {
@@ -579,95 +664,43 @@ namespace EMGUCV
                                             recogNameResult.Add(matchedData[0]);
                                             recogDistanceResult.Add(Double.Parse(matchedData[1]));
                                         }
-
                                     }
-
-                                    
-
                                 }
-
                             }
                         }
                         catch (Exception e)
                         {
                             Console.Write(e);
                         }
-
-
                     });
-            }
-                    stopWatch.Stop();
+                }   
+                    /*stopWatch.Stop();
                     TimeSpan ts = stopWatch.Elapsed;
-
-                    // Format and display the TimeSpan value. 
-                    string elapsedTime = String.Format("{0}",ts.TotalMilliseconds * 10000);
-                    //textBox2.Text = elapsedTime;
-                    //listView1.Items.Add(elapsedTime);
-                    //File.AppendAllText(@logFolder + logName + "_ver1.0.txt", "Frametime: "+elapsedTime+"\r\n");
-                    stopWatch.Reset();
-                   
-                   
-                
+                     
+                    string elapsedTime = String.Format("{0}",ts.TotalMilliseconds * 10000);                  
+                    stopWatch.Reset();*/              
             }
             
             
         }
-
-        private void button3_Click(object sender, EventArgs e)
+        private double falsePositiveCheck(Image<Gray,byte> result,Image<Gray,byte> oncamera)
         {
-
-            if (mydb.IsServerConnected())
+            //find euclidian distance
+            double sum = 0;
+            double temp;
+            double euclidD;
+            for (int i = 0;i< result.Width ;i++)
             {
-                Application.Idle -= ProcessFrame;
-                Application.Idle -= runningFrame;
-                ReleaseData();
-                FormManualTrain frmManTrain = new FormManualTrain(this);
-                frmManTrain.Show();
-                button1.Enabled = true;
-                this.Hide();
+                for (int j = 0; j < result.Height; j++)
+                {
+                    temp = Math.Pow((Int32.Parse(result[j, i].Intensity.ToString()) - Int32.Parse(oncamera[j, i].Intensity.ToString())),2);
+                    sum += temp;
+                }
             }
-            else
-            {
-                MessageBox.Show("Database not connect.");
-            }
+            euclidD = Math.Sqrt(sum);
+            return euclidD;
         }
-
-        private void button4_Click(object sender, EventArgs e)
-        {
-            string agreementText = "ข้อตกลงในการใช้ซอฟต์แวร์\n\nซอฟต์แวร์นี้เป็นผลงานที่พัฒนาขึ้นโดย นาย ณัฐพงษ์ ไทยอุบุญ และ นาย ปฐมพล สงวนพานิช  จาก สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง ภายใต้การดูแลของ \nผศ. ดร. ชุติเมษฏ์ ศรีนิลทา  ภายใต้โครงการ ระบบตรวจสอบใบหน้าเพื่อยืนยันตัวบุคคล \nซึ่งสนับสนุนโดย ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ โดยมีวัตถุประสงค์เพื่อส่งเสริมให้นักเรียนและนักศึกษาได้เรียนรู้และฝึกทักษะในการพัฒนาซอฟต์แวร์ ลิขสิทธิ์ของซอฟต์แวร์นี้จึงเป็นของผู้พัฒนา ซึ่งผู้พัฒนาได้อนุญาตให้ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ เผยแพร่ซอฟต์แวร์นี้ตาม “ต้นฉบับ” โดยไม่มีการแก้ไขดัดแปลงใดๆ ทั้งสิ้น ให้แก่บุคคลทั่วไปได้ใช้เพื่อประโยชน์ส่วนบุคคลหรือประโยชน์ทางการศึกษาที่ไม่มีวัตถุประสงค์ในเชิงพาณิชย์ โดยไม่คิดค่าตอบแทนการใช้ซอฟต์แวร์ ดังนั้น ศูนย์เทคโนโลยีอิเล็กทรอนิกส์และคอมพิวเตอร์แห่งชาติ จึงไม่มีหน้าที่ในการดูแล บำรุงรักษา จัดการอบรมการใช้งาน หรือพัฒนาประสิทธิภาพซอฟต์แวร์ รวมทั้งไม่รับรองความถูกต้องหรือประสิทธิภาพการทำงานของซอฟต์แวร์ ตลอดจนไม่รับประกันความเสียหายต่างๆ อันเกิดจากการใช้ซอฟต์แวร์นี้ทั้งสิ้น";
-            MessageBox.Show(agreementText);
-        }
-
-        private void button5_Click(object sender, EventArgs e)
-        {
-            FolderBrowserDialog b = new FolderBrowserDialog();
-            DialogResult r = b.ShowDialog();
-            if (r == DialogResult.OK) // Test result.
-            {
-                folderPath = b.SelectedPath;
-                Console.WriteLine(folderPath);
-                File.WriteAllText(@"setting.txt", folderPath);
-                MessageBox.Show("Path is at "+folderPath);
-            }
-        }
-
-        private void button6_Click(object sender, EventArgs e)
-        {
-            if (mydb.IsServerConnected())
-            {
-                Application.Idle -= ProcessFrame;
-                Application.Idle -= runningFrame;
-                ReleaseData();
-                FormManageData frmManData = new FormManageData(this);
-                frmManData.Show();
-                //button1.Enabled = true;
-                this.Hide();
-            }
-            else
-            {
-                MessageBox.Show("Database not connect.");
-            }
-        }
+        
 
         
                                            

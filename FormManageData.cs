@@ -20,9 +20,11 @@ namespace EMGUCV
         DBConn db;
         private Form1 _form1;
 
+        Classifier_Train eigenRecog;
+
         int imageCollectionPosition = 0;
         Image<Gray, byte>[] userImageCollection;
-
+        OpenFileDialog browseImage;
         string userId = "";
         public FormManageData(Form1 frm1)
         {
@@ -30,6 +32,8 @@ namespace EMGUCV
             db = new DBConn();
             _form1 = frm1;
             FillData();
+            eigenRecog = new Classifier_Train();
+            browseImage = new OpenFileDialog();
         }
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -159,6 +163,97 @@ namespace EMGUCV
             
         }
 
-        
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Image<Gray,byte>[] selfCheckImageList = db.getTrainedImageList();
+            int[] selfCheckLabel = db.getAllImageID();
+            int count = 0;
+            foreach(var image in selfCheckImageList){
+
+                string[] matchedData = imageCheckRecognize(image);
+                db.updateSelfChecking(matchedData[0], matchedData[1], selfCheckLabel[count].ToString());
+                count++;
+            }
+            MessageBox.Show("Self Checking Finished.");
+        }
+        private string[] imageCheckRecognize(Image<Gray,byte> image)
+        {
+            string matchedResult = eigenRecog.Recognise(image);
+            string[] matchedData = matchedResult.Split(' ');
+            return matchedData;
+        }
+        private void button6_Click(object sender, EventArgs e)
+        {
+            string folderPath = "";
+            browseImage.Title = "Please select 140*175 pixel Image";
+            DialogResult result = browseImage.ShowDialog();
+            Image<Gray, byte> loadImage;
+            if (result == DialogResult.OK) // Test result.
+            {
+                folderPath = browseImage.FileName;
+                Console.WriteLine(folderPath);
+                Image<Gray, byte> receiveImage = new Image<Gray, byte>(folderPath);
+                if (receiveImage.Width <= 640 && receiveImage.Height <= 480)
+                {
+                    loadImage = receiveImage;
+                    
+                    imageBox7.Image = loadImage;
+                    
+                    
+                    //tomorrow
+                    string[] matchedData = imageCheckRecognize(loadImage);
+                    label7.Text = matchedData[0];//result
+                    label5.Text = matchedData[1];//distance
+                }
+                else
+                {
+                    MessageBox.Show("Please select image that smaller than 640x480 pixel");
+                }
+            }
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {                    
+            FormImageRetrieve frmManData = new FormImageRetrieve(this);
+            frmManData.Show();
+            //button1.Enabled = true;
+            this.Hide();
+           
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            int[] allName = db.getAllImageID();
+            Image<Gray, byte>[] allImage = db.getTrainedImageList();
+            string tempPath = "\\tmpp.jpg";
+            string folderPath = "E:\\Visual2013\\Project\\EMGUCV\\EMGUCV\\bin\\x64\\Release";
+            Point[] pL = new Point[3];
+            Point[] pR = new Point[3];
+            int y0 = 105;
+            int y1 = 174;
+            int x0 = 0;
+            int x1 = 34;
+            int x2 = 105;
+            int x3 = 139;
+            pL[0] = new Point(x0, y0);
+            pL[1] = new Point(x0, y1);
+            pL[2] = new Point(x1, y1);
+            pR[0] = new Point(x3, y0);
+            pR[1] = new Point(x3, y1);
+            pR[2] = new Point(x2, y1);
+            int count = 0;
+            foreach(var id in allName){
+
+                
+                allImage[count].FillConvexPoly(pL, new Gray(128));
+                allImage[count].FillConvexPoly(pR, new Gray(128));
+                allImage[count].Save(folderPath + tempPath);
+                string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                db.updateImagePreprocessing(allName[count].ToString(), dbPath);
+                count++;
+            }
+            MessageBox.Show("Image trans finish.");
+
+        }  
     }
 }

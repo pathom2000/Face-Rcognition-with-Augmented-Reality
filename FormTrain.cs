@@ -35,6 +35,7 @@ namespace EMGUCV
         private Size minEye;
         private Size maxEye;
         private string tempPath = "\\tmp.jpg";
+        private string tempPath2 = "\\tmp2.jpg";
         private string folderPath = "";
         private DBConn mydb;
         private Classifier_Train eigenRecog;
@@ -53,6 +54,7 @@ namespace EMGUCV
         private Point framePoint = new Point(30, 30);
         private Point frameTextPoint = new Point(30, 30);
         private Int32 newid;
+        private int imageCount = 1;
         public FormTrain(Form1 frm1)
         {
             InitializeComponent();
@@ -86,15 +88,15 @@ namespace EMGUCV
             }
             initializeCombobox();
             Application.Idle += new EventHandler(runningCamera);
-            
+            comboBox4.SelectedIndex = 0;
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
-            
-            string dateTemp = dateTimePicker1.Value.ToString("s");
-            
-            
+            if(comboBox4.SelectedIndex == 0){
+                string dateTemp = dateTimePicker1.Value.ToString("s");
+
+
                 if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
                 {
                     mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
@@ -105,6 +107,14 @@ namespace EMGUCV
                 {
                     TrainFrame(newid);
                 }
+            }else if(comboBox4.SelectedIndex == 1){
+                TrainFrame2Image();
+                if(File.Exists("E:/ImagetestSet/" + textBox1.Text + comboBox1.Text + imageCount + ".jpg")){
+                    imageCount++;
+                }
+                
+            }
+            
             
 
             
@@ -145,6 +155,7 @@ namespace EMGUCV
                 var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
                 if (faces.Length > 0)
                 {
+                    label6.ForeColor = Color.Chocolate;
                     label6.Text = "Tracking Face";
                     foreach (var facecount in faces)
                     {
@@ -165,13 +176,13 @@ namespace EMGUCV
                             }
                             int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
                             int lefteyebrowpoint = eyeObjects[0].X;//
-                            int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
-                            int xxx = (int)((1.5 / 8.0) * betweeneLength);
+                            int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
+                            int margin = (int)((1.5 / 8.0) * betweeneLength);
                             int neareyebrowpoint = (int)(0.2 * betweeneLength);
                             int faceheight = (int)(2.3 * betweeneLength);
 
-                            realFacePosition = new Point(facePosition.X + lefteyebrowpoint - xxx, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
-                            realfaceRectangleSize = new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight);
+                            realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
+                            realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
                             realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
 
                             greyImage.ROI = realfaceRectangle;
@@ -183,6 +194,7 @@ namespace EMGUCV
                 }
                 else
                 {
+                    label6.ForeColor = Color.DeepSkyBlue;
                     label6.Text = "Idle";
                 }
 
@@ -213,7 +225,7 @@ namespace EMGUCV
                 
                 Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
                 Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-
+                Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
                 //ArrayList pic = new ArrayList();
                 if (imageFrameT != null)
                 {
@@ -242,37 +254,63 @@ namespace EMGUCV
                                 }
                                 int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
                                 int lefteyebrowpoint = eyeObjects[0].X;//
-                                int righteyebrowpoint = eyeObjects[0].X + betweeneLength + eyeObjects[1].Width;//
-                                int xxx = (int)((1.5 / 8.0) * betweeneLength);
+                                int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
+                                int margin = (int)((1.5 / 8.0) * betweeneLength);
                                 int neareyebrowpoint = (int)(0.2 * betweeneLength);
                                 int faceheight = (int)(2.3 * betweeneLength);
 
-                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - xxx, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
-                                realfaceRectangleSize = new Size((righteyebrowpoint + xxx) - (lefteyebrowpoint - xxx), faceheight);
+                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
+                                realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
                                 realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
 
                                 greyImage.ROI = realfaceRectangle;
                                 
                                 //get bigger face in frame
                                 cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+                                
                                 if (!cropimage.Equals(darkimage))
                                 {
                                     cropimage._EqualizeHist();
+
+                                    CvInvoke.cvFastNlMeansDenoising(cropimage, cropimage,3,7,21);
+                                    plainimage = cropimage.Copy();
+                                    Point[] pL = new Point[3];
+                                    Point[] pR = new Point[3];
+                                    int y0 = 105;
+                                    int y1 = 174;
+                                    int x0 = 0;
+                                    int x1 = 34;
+                                    int x2 = 105;
+                                    int x3 = 139;
+                                    pL[0] = new Point(x0, y0);
+                                    pL[1] = new Point(x0, y1);
+                                    pL[2] = new Point(x1, y1);
+                                    pR[0] = new Point(x3, y0);
+                                    pR[1] = new Point(x3, y1);
+                                    pR[2] = new Point(x2, y1);
+                                    cropimage.FillConvexPoly(pL,new Gray(128));
+                                    cropimage.FillConvexPoly(pR, new Gray(128));
+                                    //cropimage = cropimage.SmoothMedian(3);
                                     imageBox7.Image = cropimage;     //line 2
                                     cropimage.Save(folderPath + tempPath);
                                     string dbPath = (folderPath + tempPath).Replace("\\", "/");
-                                    mydb.InsertImageTraining(newid, dbPath, true);
+                                    plainimage.Save(folderPath + tempPath2);
+                                    string dbPathPlain = (folderPath + tempPath2).Replace("\\", "/");
+                                    mydb.InsertImageTraining(newid,dbPathPlain, dbPath, true);
+                                    label6.ForeColor = Color.ForestGreen;
                                     label6.Text = "Success";
                                     //File.Delete(tempPath);
                                     eigenRecog.reloadData();
+                                    imageBox7.Image = cropimage;
                                 }
                                 else
                                 {
+                                    label6.ForeColor = Color.Red;
                                     label6.Text = "Fail";
                                 }
 
                             }
-                            imageBox7.Image = cropimage;
+                            
                         }
                     }
                 }
@@ -286,15 +324,108 @@ namespace EMGUCV
                 // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         }
-
-        private void FormTrain_Load(object sender, EventArgs e)
+        private void TrainFrame2Image()
         {
-            // TODO: This line of code loads data into the 'facerecog.faceimage' table. You can move, or remove it, as needed.
-            this.faceimageTableAdapter.Fill(this.facerecog.faceimage);
-            // TODO: This line of code loads data into the 'facerecog.userprofile' table. You can move, or remove it, as needed.
-            this.userprofileTableAdapter.Fill(this.facerecog.userprofile);
+            try
+            {
 
+
+                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                //ArrayList pic = new ArrayList();
+                if (imageFrameT != null)
+                {
+                    Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray, Byte>();
+
+
+                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(300, 300));
+                    if (faces.Length > 0)
+                    {
+                        foreach (var facecount in faces)
+                        {
+                            facePosition = new Point(facecount.rect.X, facecount.rect.Y);
+                            faceRectangleSize = new Size(facecount.rect.Width, facecount.rect.Height);
+                            faceRectangle = new Rectangle(facePosition, faceRectangleSize);
+                            greyImage.ROI = faceRectangle;
+                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                            greyImage.ROI = Rectangle.Empty;
+                            if (eyeObjects.Length == 2)
+                            {
+                                Console.WriteLine("eye");
+                                if (eyeObjects[0].X > eyeObjects[1].X)
+                                {
+                                    var temp = eyeObjects[0];
+                                    eyeObjects[0] = eyeObjects[1];
+                                    eyeObjects[1] = temp;
+                                }
+                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
+                                int lefteyebrowpoint = eyeObjects[0].X;//
+                                int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
+                                int margin = (int)((1.5 / 8.0) * betweeneLength);
+                                int neareyebrowpoint = (int)(0.2 * betweeneLength);
+                                int faceheight = (int)(2.3 * betweeneLength);
+
+                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
+                                realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
+                                realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
+
+                                greyImage.ROI = realfaceRectangle;
+
+                                //get bigger face in frame
+                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+
+                                if (!cropimage.Equals(darkimage))
+                                {
+                                    cropimage._EqualizeHist();
+
+                                    CvInvoke.cvFastNlMeansDenoising(cropimage, cropimage, 3, 7, 21);
+                                    plainimage = cropimage.Copy();
+                                    Point[] pL = new Point[3];
+                                    Point[] pR = new Point[3];
+                                    int y0 = 105;
+                                    int y1 = 174;
+                                    int x0 = 0;
+                                    int x1 = 34;
+                                    int x2 = 105;
+                                    int x3 = 139;
+                                    pL[0] = new Point(x0, y0);
+                                    pL[1] = new Point(x0, y1);
+                                    pL[2] = new Point(x1, y1);
+                                    pR[0] = new Point(x3, y0);
+                                    pR[1] = new Point(x3, y1);
+                                    pR[2] = new Point(x2, y1);
+                                    cropimage.FillConvexPoly(pL, new Gray(128));
+                                    cropimage.FillConvexPoly(pR, new Gray(128));
+                                    //cropimage = cropimage.SmoothMedian(3);
+                                    imageBox7.Image = cropimage;     //line 2
+                                    cropimage.Save("E:/ImagetestSet/" + textBox1.Text + comboBox1.Text + imageCount + ".jpg");
+                                    
+                                    label6.ForeColor = Color.ForestGreen;
+                                    label6.Text = "Success";
+                                    //File.Delete(tempPath);
+                                    
+                                    imageBox7.Image = cropimage;
+                                }
+                                else
+                                {
+                                    label6.ForeColor = Color.Red;
+                                    label6.Text = "Fail";
+                                }
+
+                            }
+
+                        }
+                    }
+                }
+                
+            }
+            catch
+            {
+                // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
         }
+        
 
         private void comboBox3_SelectedIndexChanged(object sender, EventArgs e)
         {

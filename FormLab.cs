@@ -43,7 +43,7 @@ namespace EMGUCV
             textBox1.Text = result;
             textBox2.Text = distance.ToString();
             imageBox7.Image = testImage;
-            imageBox1.Image = db.manualQuery1row(result);
+            imageBox1.Image = db.getResultImage(result);
         }
     }
 }

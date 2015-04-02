@@ -45,9 +45,9 @@
             this.label1 = new System.Windows.Forms.Label();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.textBox3 = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
+            this.dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox7)).BeginInit();
             this.groupBox1.SuspendLayout();
@@ -118,6 +118,7 @@
             this.button1.TabIndex = 30;
             this.button1.Text = "TRAIN";
             this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // button3
             // 
@@ -131,6 +132,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.dateTimePicker1);
             this.groupBox1.Controls.Add(this.comboBox1);
             this.groupBox1.Controls.Add(this.comboBox2);
             this.groupBox1.Controls.Add(this.textBox1);
@@ -138,7 +140,6 @@
             this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Controls.Add(this.textBox2);
             this.groupBox1.Controls.Add(this.label3);
-            this.groupBox1.Controls.Add(this.textBox3);
             this.groupBox1.Controls.Add(this.label5);
             this.groupBox1.Controls.Add(this.label4);
             this.groupBox1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -151,6 +152,7 @@
             // 
             // comboBox1
             // 
+            this.comboBox1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBox1.FormattingEnabled = true;
             this.comboBox1.Items.AddRange(new object[] {
             "O",
@@ -164,6 +166,7 @@
             // 
             // comboBox2
             // 
+            this.comboBox2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBox2.FormattingEnabled = true;
             this.comboBox2.Items.AddRange(new object[] {
             "Male",
@@ -214,13 +217,6 @@
             this.label3.TabIndex = 19;
             this.label3.Text = "Surname";
             // 
-            // textBox3
-            // 
-            this.textBox3.Location = new System.Drawing.Point(83, 78);
-            this.textBox3.Name = "textBox3";
-            this.textBox3.Size = new System.Drawing.Size(100, 20);
-            this.textBox3.TabIndex = 20;
-            // 
             // label5
             // 
             this.label5.AutoSize = true;
@@ -238,6 +234,18 @@
             this.label4.Size = new System.Drawing.Size(51, 13);
             this.label4.TabIndex = 21;
             this.label4.Text = "BirthDate";
+            // 
+            // dateTimePicker1
+            // 
+            this.dateTimePicker1.CustomFormat = "";
+            this.dateTimePicker1.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dateTimePicker1.Location = new System.Drawing.Point(83, 78);
+            this.dateTimePicker1.MaxDate = new System.DateTime(2015, 2, 22, 0, 0, 0, 0);
+            this.dateTimePicker1.Name = "dateTimePicker1";
+            this.dateTimePicker1.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.dateTimePicker1.Size = new System.Drawing.Size(113, 20);
+            this.dateTimePicker1.TabIndex = 30;
+            this.dateTimePicker1.Value = new System.DateTime(2015, 2, 22, 0, 0, 0, 0);
             // 
             // FormManualTrain
             // 
@@ -282,8 +290,8 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TextBox textBox3;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.DateTimePicker dateTimePicker1;
     }
 }

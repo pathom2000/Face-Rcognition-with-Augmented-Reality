@@ -105,6 +105,34 @@ namespace EMGUCV
                 return false;
             }
         }
+        /// <summary>
+        /// get image serrogate key</summary>
+        public int[] getAllImageID()
+        {
+            string query = "select idserrogate from faceimage order by userid;";
+            List<int> retval = new List<int>();
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                while (rdr.Read())
+                {
+                    retval.Add(rdr.GetInt32(0));
+                }
+                //close connection
+                this.CloseConnection();
+                return retval.ToArray();
+            }
+            return null;
+        }
+        /// <summary>
+        /// get all userid</summary>
         public int[] getAllUserID()
         {
             string query = "select userid from userprofile;";
@@ -128,8 +156,9 @@ namespace EMGUCV
             }
             return null;
         }
-        //Insert statement
-        public void InsertImageTraining(int Labelname,string TrainedImagePath,bool IsOriginal)
+        /// <summary>
+        /// insert image fucntion for training</summary>
+        public void InsertImageTraining(int Labelname, string TrainedImagePath, string TrainedImagePath2, bool IsOriginal)
         {
             char originalFlag;
             if(IsOriginal){
@@ -137,7 +166,7 @@ namespace EMGUCV
             }else{
                 originalFlag = 'N';
             }
-            string query = "INSERT INTO faceimage (userid, image,original) VALUES(" + Labelname + ", LOAD_FILE('" + TrainedImagePath + "'),'" + originalFlag + "')";
+            string query = "INSERT INTO faceimage (userid, image,imageforcompute,original) VALUES(" + Labelname + ", LOAD_FILE('" + TrainedImagePath + "'),LOAD_FILE('" + TrainedImagePath2 + "'),'" + originalFlag + "')";
             Console.WriteLine(query);
             //open connection
             if (this.OpenConnection() == true)
@@ -152,6 +181,8 @@ namespace EMGUCV
                 this.CloseConnection();
             }
         }
+        /// <summary>
+        /// insert userdata for training</summary>
         public void InsertUserData(string userName, string userSurname, string birthDate, string bloodType, string gender)
         {
 
@@ -170,6 +201,28 @@ namespace EMGUCV
                 this.CloseConnection();
             }
         }
+        /// <summary>
+        /// insert timestamp</summary>
+        public void InsertTimestamp(string userid,string compName,string confident,string resImagePath,string distance,string distance2)
+        {
+
+            string query = "INSERT INTO checkintime (userid,compname,confident,resultimage,distance,distance2) VALUES('" + userid + "','" + compName + "','" + confident + "', LOAD_FILE('" + resImagePath + "'),'" + distance + "','" + distance2 + "');";
+            Console.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+        }
+        /// <summary>
+        /// get userid from userinfo </summary>
         public Int32 getUserId(string userName, string userSurname, string birthDate, string bloodType)
         {
             string query = "select userid from userprofile where name = '" + userName + "' and surname = '" + userSurname + "' and birthdate = '" + birthDate + "' and bloodtype = '" + bloodType +"';";
@@ -195,6 +248,37 @@ namespace EMGUCV
             }
             return 0;
         }
+        /// <summary>
+        /// get userid from serrogate </summary>
+        public string getUserIdFromSerrogate(string serrogate)
+        {
+            string query = "select userid from faceimage where idserrogate = '" + serrogate +"';";
+            Int32 retval;
+            Debug.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                if (rdr.Read()) {
+                    retval = rdr.GetInt32(0);
+                }
+                else
+                {
+                    retval = 0;
+                }
+                //close connection
+                this.CloseConnection();
+                return retval.ToString();
+            }
+            return "";
+        }
+        /// <summary>
+        /// check if user exist</summary>
         public bool checkUserProfile(string userName, string userSurname)
         {
             int retval = 0;
@@ -227,6 +311,8 @@ namespace EMGUCV
             }
             return false;
         }
+        /// <summary>
+        /// get specified userimage from id </summary>
         public Image<Gray, byte>[] getUserImage(string userid)
         {
             Image<Gray, byte> addimage;
@@ -410,7 +496,8 @@ namespace EMGUCV
             }
             return 0;
         }
-
+        /// <summary>
+        /// get all userid from image table </summary>
         public List<string> getLabelList()
         {
             string query = "select userid from faceimage";
@@ -436,6 +523,8 @@ namespace EMGUCV
             }
             return null;
         }
+        /// <summary>
+        /// get user info from id </summary>
         public string getUserData(string id)//if not have data ret ""
         {
             string query = "select * from userprofile where userid ="+ id;
@@ -474,12 +563,13 @@ namespace EMGUCV
             }
             return null;
         }
-        
+        /// <summary>
+        /// get specified userimage from label </summary>
         public Image<Gray, byte> getResultImage(string res)
         {
 
             Image<Gray, byte> addimage;
-            string query = "select image,length(image) as filesize from faceimage where userid = '"+ res+"' and original = 'Y'";
+            string query = "select image,length(image) as filesize from faceimage where idserrogate = '"+ res+"'";
             Image<Gray, byte> retval = new Image<Gray, byte>(140,175);
             Debug.WriteLine(query);
             byte[] temp;
@@ -518,13 +608,55 @@ namespace EMGUCV
             }
             return null;
         }
-        
+        public Image<Gray, byte> getComputeResultImage(string res)
+        {
+
+            Image<Gray, byte> addimage;
+            string query = "select imageforcompute,length(imageforcompute) as filesize from faceimage where idserrogate = '" + res + "'";
+            Image<Gray, byte> retval = new Image<Gray, byte>(140, 175);
+            Debug.WriteLine(query);
+            byte[] temp;
+            Int32 Filesize;
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                while (rdr.Read())
+                {
+                    Filesize = rdr.GetInt32("filesize");
+
+                    temp = new byte[Filesize];
+
+                    rdr.GetBytes(rdr.GetOrdinal("imageforcompute"), 0, temp, 0, Filesize);
+                    MemoryStream stream = new MemoryStream(temp);
+
+                    Image imtemp = Image.FromStream(stream);
+
+                    addimage = new Image<Gray, byte>(new Bitmap(imtemp));
+
+                    retval = addimage;
+                }
+
+
+
+
+                //close connection
+                this.CloseConnection();
+                return retval;
+            }
+            return null;
+        }
         public Image<Gray, byte>[] getTrainedImageList()
         {
             Image<Gray, byte> addimage;
-            string query = "select image,length(image) as filesize from faceimage";
+            string query = "select imageforcompute,length(imageforcompute) as filesize from faceimage order by userid";
             List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
-            Debug.WriteLine(query);
+            Console.WriteLine(query);
             byte[] temp;
             Int32 Filesize;
             //open connection
@@ -541,8 +673,8 @@ namespace EMGUCV
                     Filesize = rdr.GetInt32("filesize");
 
                     temp = new byte[Filesize];
-                    
-                    rdr.GetBytes(rdr.GetOrdinal("image"), 0, temp, 0,Filesize);
+
+                    rdr.GetBytes(rdr.GetOrdinal("imageforcompute"), 0, temp, 0, Filesize);
                     MemoryStream stream = new MemoryStream(temp);
 
                     Image imtemp = Image.FromStream(stream);
@@ -560,6 +692,43 @@ namespace EMGUCV
                 return retval.ToArray();
             }
             return null;
-        }        
+        }
+        public void updateSelfChecking(string resName,string resDistance,string id)
+        {
+            string query = "UPDATE faceimage SET selfcheckresult='" + resName + "',selfcheckdistance='" + resDistance + "' where idserrogate='"+id+"';";
+            Console.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+            //open connection
+           
+        }
+        public void updateImagePreprocessing(string id, string TrainedImagePath)
+        {
+            string query = "UPDATE faceimage SET imageforshow = LOAD_FILE('" + TrainedImagePath + "') where idserrogate='" + id + "';";
+            Console.WriteLine(query);
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                cmd.ExecuteNonQuery();
+
+                //close connection
+                this.CloseConnection();
+            }
+            //open connection
+        }
     }  
 }
