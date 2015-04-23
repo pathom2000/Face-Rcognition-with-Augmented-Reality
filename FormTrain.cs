@@ -55,12 +55,13 @@ namespace EMGUCV
         private Point frameTextPoint = new Point(30, 30);
         private Int32 newid;
         private int imageCount = 1;
-        public FormTrain(Form1 frm1)
+        private bool trainflag = false;
+        public FormTrain(Form1 frm1,Classifier_Train cls)
         {
             InitializeComponent();
             _form1 = frm1;
 
-            eigenRecog = new Classifier_Train();
+            eigenRecog = cls;
             face = new HaarCascade("haarcascade_frontalface_default.xml");
             eyeWithGlass = new CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml");
             mydb = new DBConn();
@@ -87,35 +88,29 @@ namespace EMGUCV
                 }
             }
             initializeCombobox();
-            Application.Idle += new EventHandler(runningCamera);
-            comboBox4.SelectedIndex = 0;
+            Application.Idle += new EventHandler(TrainFrame);
+            
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
-            if(comboBox4.SelectedIndex == 0){
-                string dateTemp = dateTimePicker1.Value.ToString("s");
+            
+            string dateTemp = dateTimePicker1.Value.ToString("s");
 
 
-                if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
-                {
-                    mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
-                }
-
-                newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text);
-                if (newid != 0)
-                {
-                    TrainFrame(newid);
-                }
-            }else if(comboBox4.SelectedIndex == 1){
-                TrainFrame2Image();
-                if(File.Exists("E:/ImagetestSet/" + textBox1.Text + comboBox1.Text + imageCount + ".jpg")){
-                    imageCount++;
-                }
-                
+            if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
+            {
+                mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
             }
+
+            newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text);
+            if (newid != 0)
+            {
+                trainflag = true;
+           
             
-            
+            }
+                
 
             
             
@@ -132,80 +127,13 @@ namespace EMGUCV
             
             
         }
-        private void button2_Click(object sender, EventArgs e)
-        {
-            Application.Idle -= runningCamera;
-            if (captureT != null)
-            {
-                captureT.Dispose();
-            }
-                
-            _form1.Show();
-            this.Close();
-        }
-        private void runningCamera(object sender, EventArgs e)
-        {
-            imageFrameT = captureT.QueryFrame();
-
-            if (imageFrameT != null)
-            {
-                Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray, Byte>();
-                showImage = imageFrameT.Copy();
-
-                var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(200, 200));
-                if (faces.Length > 0)
-                {
-                    label6.ForeColor = Color.Chocolate;
-                    label6.Text = "Tracking Face";
-                    foreach (var facecount in faces)
-                    {
-                        facePosition = new Point(facecount.rect.X, facecount.rect.Y);
-                        faceRectangleSize = new Size(facecount.rect.Width, facecount.rect.Height);
-                        faceRectangle = new Rectangle(facePosition, faceRectangleSize);
-                        greyImage.ROI = faceRectangle;
-                        var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                        greyImage.ROI = Rectangle.Empty;
-                        if (eyeObjects.Length == 2)
-                        {
-                            Console.WriteLine("eye");
-                            if (eyeObjects[0].X > eyeObjects[1].X)
-                            {
-                                var temp = eyeObjects[0];
-                                eyeObjects[0] = eyeObjects[1];
-                                eyeObjects[1] = temp;
-                            }
-                            int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
-                            int lefteyebrowpoint = eyeObjects[0].X;//
-                            int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
-                            int margin = (int)((1.5 / 8.0) * betweeneLength);
-                            int neareyebrowpoint = (int)(0.2 * betweeneLength);
-                            int faceheight = (int)(2.3 * betweeneLength);
-
-                            realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
-                            realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
-                            realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
-
-                            greyImage.ROI = realfaceRectangle;
-
-                            showImage.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
-
-                        }
-                    }
-                }
-                else
-                {
-                    label6.ForeColor = Color.DeepSkyBlue;
-                    label6.Text = "Idle";
-                }
-
-            }
-            imageBox1.Image = showImage;
-        }
+        
+      
         
        
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            Application.Idle -= runningCamera;
+            Application.Idle -= TrainFrame;
             if (captureT != null)
             {
                 captureT.Dispose();
@@ -217,214 +145,137 @@ namespace EMGUCV
             _form1.Show();
             
         }
-        private void TrainFrame(int newid)
+        private void TrainFrame(object sender, EventArgs e)
         {
-            try
-            {
-
-                
-                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                //ArrayList pic = new ArrayList();
-                if (imageFrameT != null)
+            
+                try
                 {
-                    Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray, Byte>();
-                    
+                    imageFrameT = captureT.QueryFrame();
 
-                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(300, 300));
-                    if (faces.Length > 0)
+                    Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                    Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                    Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                    //ArrayList pic = new ArrayList();
+                    if (imageFrameT != null)
                     {
-                        foreach (var facecount in faces)
+                        Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray,byte>();
+
+
+                        var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(300, 300));
+                        if (faces.Length > 0)
                         {
-                            facePosition = new Point(facecount.rect.X, facecount.rect.Y);
-                            faceRectangleSize = new Size(facecount.rect.Width, facecount.rect.Height);
-                            faceRectangle = new Rectangle(facePosition, faceRectangleSize);
-                            greyImage.ROI = faceRectangle;
-                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                            greyImage.ROI = Rectangle.Empty;
-                            if (eyeObjects.Length == 2)
+                            label6.ForeColor = Color.Chocolate;
+                            label6.Text = "Tracking Face";
+                            foreach (var facecount in faces)
                             {
-                                Console.WriteLine("eye");
-                                if (eyeObjects[0].X > eyeObjects[1].X)
+                                facePosition = new Point(facecount.rect.X, facecount.rect.Y);
+                                faceRectangleSize = new Size(facecount.rect.Width, facecount.rect.Height);
+                                faceRectangle = new Rectangle(facePosition, faceRectangleSize);
+                                greyImage.ROI = faceRectangle;
+                                var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
+                                greyImage.ROI = Rectangle.Empty;
+                                if (eyeObjects.Length == 2)
                                 {
-                                    var temp = eyeObjects[0];
-                                    eyeObjects[0] = eyeObjects[1];
-                                    eyeObjects[1] = temp;
-                                }
-                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
-                                int lefteyebrowpoint = eyeObjects[0].X;//
-                                int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
-                                int margin = (int)((1.5 / 8.0) * betweeneLength);
-                                int neareyebrowpoint = (int)(0.2 * betweeneLength);
-                                int faceheight = (int)(2.3 * betweeneLength);
+                                    Console.WriteLine("eye");
+                                    if (eyeObjects[0].X > eyeObjects[1].X)
+                                    {
+                                        var temp = eyeObjects[0];
+                                        eyeObjects[0] = eyeObjects[1];
+                                        eyeObjects[1] = temp;
+                                    }
+                                    int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
+                                    int lefteyebrowpoint = eyeObjects[0].X;//
+                                    int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
+                                    int margin = (int)((1.5 / 8.0) * betweeneLength);
+                                    int neareyebrowpoint = (int)(0.2 * betweeneLength);
+                                    int faceheight = (int)(2.3 * betweeneLength);
 
-                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
-                                realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
-                                realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
+                                    realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
+                                    realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
+                                    realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
 
-                                greyImage.ROI = realfaceRectangle;
-                                
-                                //get bigger face in frame
-                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-                                
-                                if (!cropimage.Equals(darkimage))
-                                {
-                                    cropimage._EqualizeHist();
+                                    greyImage.ROI = realfaceRectangle;
 
-                                    CvInvoke.cvFastNlMeansDenoising(cropimage, cropimage,3,7,21);
-                                    plainimage = cropimage.Copy();
-                                    Point[] pL = new Point[3];
-                                    Point[] pR = new Point[3];
-                                    int y0 = 105;
-                                    int y1 = 174;
-                                    int x0 = 0;
-                                    int x1 = 34;
-                                    int x2 = 105;
-                                    int x3 = 139;
-                                    pL[0] = new Point(x0, y0);
-                                    pL[1] = new Point(x0, y1);
-                                    pL[2] = new Point(x1, y1);
-                                    pR[0] = new Point(x3, y0);
-                                    pR[1] = new Point(x3, y1);
-                                    pR[2] = new Point(x2, y1);
-                                    cropimage.FillConvexPoly(pL,new Gray(128));
-                                    cropimage.FillConvexPoly(pR, new Gray(128));
-                                    //cropimage = cropimage.SmoothMedian(3);
-                                    imageBox7.Image = cropimage;     //line 2
-                                    cropimage.Save(folderPath + tempPath);
-                                    string dbPath = (folderPath + tempPath).Replace("\\", "/");
-                                    plainimage.Save(folderPath + tempPath2);
-                                    string dbPathPlain = (folderPath + tempPath2).Replace("\\", "/");
-                                    mydb.InsertImageTraining(newid,dbPathPlain, dbPath, true);
-                                    label6.ForeColor = Color.ForestGreen;
-                                    label6.Text = "Success";
-                                    //File.Delete(tempPath);
-                                    eigenRecog.reloadData();
-                                    imageBox7.Image = cropimage;
-                                }
-                                else
-                                {
-                                    label6.ForeColor = Color.Red;
-                                    label6.Text = "Fail";
+                                    imageFrameT.Draw(realfaceRectangle, new Bgr(Color.LimeGreen), 2);
+
+                                    if (trainflag)
+                                    {
+                                        //get bigger face in frame
+                                        cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
+
+                                        if (!cropimage.Equals(darkimage))
+                                        {
+                                            cropimage._EqualizeHist();
+
+                                            CvInvoke.cvFastNlMeansDenoising(cropimage, cropimage, 3, 7, 21);
+                                            plainimage = cropimage.Copy();
+                                            Point[] pL = new Point[3];
+                                            Point[] pR = new Point[3];
+                                            int y0 = 105;
+                                            int y1 = 174;
+                                            int x0 = 0;
+                                            int x1 = 34;
+                                            int x2 = 105;
+                                            int x3 = 139;
+                                            pL[0] = new Point(x0, y0);
+                                            pL[1] = new Point(x0, y1);
+                                            pL[2] = new Point(x1, y1);
+                                            pR[0] = new Point(x3, y0);
+                                            pR[1] = new Point(x3, y1);
+                                            pR[2] = new Point(x2, y1);
+                                            cropimage.FillConvexPoly(pL, new Gray(128));
+                                            cropimage.FillConvexPoly(pR, new Gray(128));
+                                            //cropimage = cropimage.SmoothMedian(3);
+                                            imageBox7.Image = cropimage;     //line 2
+                                            cropimage.Save(folderPath + tempPath);
+                                            string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                                            plainimage.Save(folderPath + tempPath2);
+                                            string dbPathPlain = (folderPath + tempPath2).Replace("\\", "/");
+                                            mydb.InsertImageTraining(newid, dbPathPlain, dbPath, true);
+                                            label6.ForeColor = Color.ForestGreen;
+                                            label6.Text = "Success";
+                                            //File.Delete(tempPath);
+                                            //eigenRecog.reloadData();
+                                            imageBox7.Image = cropimage;
+                                            imageCount++;
+                                        }
+                                        else
+                                        {
+                                            label6.ForeColor = Color.Red;
+                                            label6.Text = "Fail";
+                                        }
+                                        if (imageCount > 25)
+                                        {
+                                            trainflag = false;
+                                            imageCount = 1;
+                                            label6.ForeColor = Color.LimeGreen;
+                                            label6.Text = "Finish";
+                                        }
+                                    }
                                 }
 
                             }
-                            
-                        }
-                    }
-                }
-                else
-                {
-                    mydb.DeleteUser(newid);
-                }
-            }
-            catch
-            {
-                // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            }
-        }
-        private void TrainFrame2Image()
-        {
-            try
-            {
-
-
-                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                Image<Gray, byte> cropimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
-                //ArrayList pic = new ArrayList();
-                if (imageFrameT != null)
-                {
-                    Image<Gray, byte> greyImage = imageFrameT.Copy().Convert<Gray, Byte>();
-
-
-                    var faces = face.Detect(greyImage, 1.3, 6, HAAR_DETECTION_TYPE.FIND_BIGGEST_OBJECT, new Size(120, 120), new Size(300, 300));
-                    if (faces.Length > 0)
-                    {
-                        foreach (var facecount in faces)
+                        }else
                         {
-                            facePosition = new Point(facecount.rect.X, facecount.rect.Y);
-                            faceRectangleSize = new Size(facecount.rect.Width, facecount.rect.Height);
-                            faceRectangle = new Rectangle(facePosition, faceRectangleSize);
-                            greyImage.ROI = faceRectangle;
-                            var eyeObjects = eyeWithGlass.DetectMultiScale(greyImage, 1.3, 6, minEye, maxEye);
-                            greyImage.ROI = Rectangle.Empty;
-                            if (eyeObjects.Length == 2)
-                            {
-                                Console.WriteLine("eye");
-                                if (eyeObjects[0].X > eyeObjects[1].X)
-                                {
-                                    var temp = eyeObjects[0];
-                                    eyeObjects[0] = eyeObjects[1];
-                                    eyeObjects[1] = temp;
-                                }
-                                int betweeneLength = eyeObjects[1].X - eyeObjects[0].X;
-                                int lefteyebrowpoint = eyeObjects[0].X;//
-                                int righteyebrowpoint = eyeObjects[1].X + eyeObjects[1].Width;//
-                                int margin = (int)((1.5 / 8.0) * betweeneLength);
-                                int neareyebrowpoint = (int)(0.2 * betweeneLength);
-                                int faceheight = (int)(2.3 * betweeneLength);
-
-                                realFacePosition = new Point(facePosition.X + lefteyebrowpoint - margin, facePosition.Y + eyeObjects[0].Y - neareyebrowpoint);
-                                realfaceRectangleSize = new Size((righteyebrowpoint + margin) - (lefteyebrowpoint - margin), faceheight);
-                                realfaceRectangle = new Rectangle(realFacePosition, realfaceRectangleSize);
-
-                                greyImage.ROI = realfaceRectangle;
-
-                                //get bigger face in frame
-                                cropimage = greyImage.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
-
-                                if (!cropimage.Equals(darkimage))
-                                {
-                                    cropimage._EqualizeHist();
-
-                                    CvInvoke.cvFastNlMeansDenoising(cropimage, cropimage, 3, 7, 21);
-                                    plainimage = cropimage.Copy();
-                                    Point[] pL = new Point[3];
-                                    Point[] pR = new Point[3];
-                                    int y0 = 105;
-                                    int y1 = 174;
-                                    int x0 = 0;
-                                    int x1 = 34;
-                                    int x2 = 105;
-                                    int x3 = 139;
-                                    pL[0] = new Point(x0, y0);
-                                    pL[1] = new Point(x0, y1);
-                                    pL[2] = new Point(x1, y1);
-                                    pR[0] = new Point(x3, y0);
-                                    pR[1] = new Point(x3, y1);
-                                    pR[2] = new Point(x2, y1);
-                                    cropimage.FillConvexPoly(pL, new Gray(128));
-                                    cropimage.FillConvexPoly(pR, new Gray(128));
-                                    //cropimage = cropimage.SmoothMedian(3);
-                                    imageBox7.Image = cropimage;     //line 2
-                                    cropimage.Save("E:/ImagetestSet/" + textBox1.Text + comboBox1.Text + imageCount + ".jpg");
-                                    
-                                    label6.ForeColor = Color.ForestGreen;
-                                    label6.Text = "Success";
-                                    //File.Delete(tempPath);
-                                    
-                                    imageBox7.Image = cropimage;
-                                }
-                                else
-                                {
-                                    label6.ForeColor = Color.Red;
-                                    label6.Text = "Fail";
-                                }
-
-                            }
-
+                            label6.ForeColor = Color.DeepSkyBlue;
+                            label6.Text = "Idle";
                         }
+                        imageBox1.Image = imageFrameT;
+                    }
+                    else
+                    {
+                        mydb.DeleteUser(newid);
                     }
                 }
-                
-            }
-            catch
-            {
-                // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            }
+                catch
+                {
+                    // MessageBox.Show("Enable the face detection first", "Training Fail", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+
+            
+            
         }
+        
         
 
         private void comboBox3_SelectedIndexChanged(object sender, EventArgs e)
@@ -436,6 +287,72 @@ namespace EMGUCV
             dateTimePicker1.Text = splitData[3];
             comboBox1.Text = splitData[5];
             comboBox2.Text = splitData[6];
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            string dateTemp = dateTimePicker1.Value.ToString("s");
+
+
+            if (mydb.checkUserProfile(textBox1.Text, textBox2.Text))
+            {
+                mydb.InsertUserData(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text, comboBox2.Text);
+            }
+
+            newid = mydb.getUserId(textBox1.Text, textBox2.Text, dateTemp, comboBox1.Text);
+            if (newid != 0)
+            {
+                Image<Gray, byte> darkimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                Image<Gray, byte> cropimage;
+                Image<Gray, byte> plainimage = new Image<Gray, byte>(ROIwidth, ROIheight);
+                for (int i = 1;i<71 ;i++ )
+                {
+                    //cropimage = new Image<Gray, byte>(@"E:\ImageTestSet2\" + textBox1.Text + i + ".jpg");
+                    cropimage = new Image<Gray, byte>(@"E:\ImageTestSet2\Perapat" + i + ".jpg");
+                    if (!cropimage.Equals(darkimage))
+                    {
+                        
+
+                        
+                        plainimage = cropimage.Copy();
+                        Point[] pL = new Point[3];
+                        Point[] pR = new Point[3];
+                        int y0 = 105;
+                        int y1 = 174;
+                        int x0 = 0;
+                        int x1 = 34;
+                        int x2 = 105;
+                        int x3 = 139;
+                        pL[0] = new Point(x0, y0);
+                        pL[1] = new Point(x0, y1);
+                        pL[2] = new Point(x1, y1);
+                        pR[0] = new Point(x3, y0);
+                        pR[1] = new Point(x3, y1);
+                        pR[2] = new Point(x2, y1);
+                        cropimage.FillConvexPoly(pL, new Gray(128));
+                        cropimage.FillConvexPoly(pR, new Gray(128));
+                        //cropimage = cropimage.SmoothMedian(3);
+
+                        imageBox7.Image = cropimage;     //line 2
+                        cropimage.Save(folderPath + tempPath);
+                        string dbPath = (folderPath + tempPath).Replace("\\", "/");
+                        plainimage.Save(folderPath + tempPath2);
+                        string dbPathPlain = (folderPath + tempPath2).Replace("\\", "/");
+                        mydb.InsertImageTraining(newid, dbPathPlain, dbPath, true);
+                        label6.ForeColor = Color.ForestGreen;
+                        label6.Text = "Success";
+                        //File.Delete(tempPath);
+                        
+                        imageBox7.Image = cropimage;
+                    }
+                    else
+                    {
+                        label6.ForeColor = Color.Red;
+                        label6.Text = "Fail";
+                    }
+                }
+                //eigenRecog.reloadData();
+            }
         }
 
         

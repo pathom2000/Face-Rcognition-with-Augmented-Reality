@@ -22,6 +22,7 @@ using System.Drawing;
 /// </summary>
 namespace EMGUCV
 {
+    [Serializable]
     public class Classifier_Train : IDisposable
     {
 
@@ -38,7 +39,7 @@ namespace EMGUCV
         float Eigen_Distance = 0;
         string Eigen_label;
         
-        int recognizeTreshold = 8000;
+        int recognizeTreshold = 6000;
         int maxRecognizeTreshold = 10000;
         //Class Variables
         string Error;
@@ -184,16 +185,18 @@ namespace EMGUCV
             allname = mydb.getAllImageID();
             string[] allname_st = allname.Select(x => x.ToString()).ToArray();
             trainingImages = mydb.getTrainedImageList();
-                
+            //trainingImages = mydb.getRawTrainedImageList();  
                 if (mydb.getImageCount() > 0)
                 {
                     
                     if (trainingImages.Length != 0)
                     {
                         //set round and ...
-                        termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
+                        //termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
+                        termCrit = new MCvTermCriteria(100, 0.00000001);
                          //Eigen face recognizer
                         recognizer = new EigenObjectRecognizer(trainingImages, allname_st, maxRecognizeTreshold, ref termCrit);
+                        
                         return true;
                     }
                     else

@@ -693,6 +693,48 @@ namespace EMGUCV
             }
             return null;
         }
+        public Image<Gray, byte>[] getRawTrainedImageList()
+        {
+            Image<Gray, byte> addimage;
+            string query = "select image,length(image) as filesize from faceimage order by userid";
+            List<Image<Gray, byte>> retval = new List<Image<Gray, byte>>();
+            Console.WriteLine(query);
+            byte[] temp;
+            Int32 Filesize;
+            //open connection
+            if (this.OpenConnection() == true)
+            {
+                //create command and assign the query and connection from the constructor
+                MySqlCommand cmd = new MySqlCommand(query, connection);
+
+                //Execute command
+                MySqlDataReader rdr = cmd.ExecuteReader();
+
+                while (rdr.Read())
+                {
+                    Filesize = rdr.GetInt32("filesize");
+
+                    temp = new byte[Filesize];
+
+                    rdr.GetBytes(rdr.GetOrdinal("image"), 0, temp, 0, Filesize);
+                    MemoryStream stream = new MemoryStream(temp);
+
+                    Image imtemp = Image.FromStream(stream);
+
+                    addimage = new Image<Gray, byte>(new Bitmap(imtemp));
+
+                    retval.Add(addimage);
+                }
+
+
+
+
+                //close connection
+                this.CloseConnection();
+                return retval.ToArray();
+            }
+            return null;
+        }
         public void updateSelfChecking(string resName,string resDistance,string id)
         {
             string query = "UPDATE faceimage SET selfcheckresult='" + resName + "',selfcheckdistance='" + resDistance + "' where idserrogate='"+id+"';";

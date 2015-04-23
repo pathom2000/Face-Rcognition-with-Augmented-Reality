@@ -19,6 +19,8 @@ using System.IO;
 using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
+using System.Xml;
 
 namespace EMGUCV
 {
@@ -107,8 +109,15 @@ namespace EMGUCV
             if (maxImageCount % 2 == 0)
             {
                 maxImageCount--;
-                if(maxImageCount > 21){
-                    maxImageCount = 21;
+                if(maxImageCount > 15){
+                    maxImageCount = 15;
+                }
+            }
+            else
+            {
+                if (maxImageCount > 15)
+                {
+                    maxImageCount = 15;
                 }
             }
             progressBar1.Maximum = maxImageCount;
@@ -149,9 +158,28 @@ namespace EMGUCV
             pL[2] = new Point(x1, y1);
             pR[0] = new Point(x3, y0);
             pR[1] = new Point(x3, y1);
-            pR[2] = new Point(x2, y1);        
+            pR[2] = new Point(x2, y1);
+            
+            eigenRecog = new Classifier_Train();
+
+                
+            
         }
-     
+        public string CreateXML(Object YourClassObject)
+        {
+            XmlDocument xmlDoc = new XmlDocument();   //Represents an XML document, 
+            // Initializes a new instance of the XmlDocument class.          
+            XmlSerializer xmlSerializer = new XmlSerializer(YourClassObject.GetType());
+            // Creates a stream whose backing store is memory. 
+            using (MemoryStream xmlStream = new MemoryStream())
+            {
+                xmlSerializer.Serialize(xmlStream, YourClassObject);
+                xmlStream.Position = 0;
+                //Loads the XML document from the specified string.
+                xmlDoc.Load(xmlStream);
+                return xmlDoc.InnerXml;
+            }
+        }
         private void button1_Click(object sender, EventArgs e)
         {
             if (!recogButtonState)
@@ -159,7 +187,10 @@ namespace EMGUCV
                 if (mydb.IsServerConnected())
                 {
                     //Console.WriteLine(mydb.getUserData("54010001"));
-                    eigenRecog = new Classifier_Train();
+                    
+                        
+                        
+                    
                     //fishRecog = new Classifier_Fisher();
                     capture = new Capture();
                     Console.WriteLine("resolution:" + capture.Height + "," + capture.Width);
@@ -207,7 +238,7 @@ namespace EMGUCV
                 Application.Idle -= ProcessFrame;
                 Application.Idle -= runningFrame;
                 ReleaseData();
-                FormTrain frmTrain = new FormTrain(this);
+                FormTrain frmTrain = new FormTrain(this,eigenRecog);
                 frmTrain.Show();
                 button1.Enabled = true;
                 this.Hide();
@@ -259,7 +290,7 @@ namespace EMGUCV
                 Application.Idle -= ProcessFrame;
                 Application.Idle -= runningFrame;
                 ReleaseData();
-                FormManageData frmManData = new FormManageData(this);
+                FormManageData frmManData = new FormManageData(this,eigenRecog);
                 frmManData.Show();
                 //button1.Enabled = true;
                 this.Hide();
@@ -354,7 +385,9 @@ namespace EMGUCV
                 {
                     txtAR = "Can not recognize any face";
                 }
+                Console.WriteLine("loop");
             }
+            Console.WriteLine(txtAR+" "+nameID);
             //txtAR = "abc def ghi";
             
             int tmpY = framePoint.Y;
@@ -442,7 +475,7 @@ namespace EMGUCV
                     if(eyeObjects.Length == 2)
                     {
                         #region comment
-                        /*Console.WriteLine("helper");
+                       /*Console.WriteLine("helper");
                         if(eyeObjects[0].X > eyeObjects[1].X)
                         {
                             var temp = eyeObjects[0];
@@ -507,10 +540,10 @@ namespace EMGUCV
                     }
                     else //not see eye in frame
                     {
+                        
+                        learningTag = true;
                         name = "Processing...";
                         userid = "Processing...";
-                        learningTag = true;
-                        ARDisplayFlag = false;
                         timestampFlag = true;
                         faceRectangle = Rectangle.Empty;
                         realfaceRectangle = Rectangle.Empty;
@@ -519,16 +552,18 @@ namespace EMGUCV
                         progressBar1.Value = 0;
                         recogNameResult.Clear();
                         recogDistanceResult.Clear();
-                        Console.WriteLine("Clear");
+                        Console.WriteLine("Clear"); 
                     }
-                       
+                    
+                    ARDisplayFlag = false;
+                    
+                    
                 }
                 else 
                 { 
                     Parallel.ForEach(faces, facecount =>
                     {
-                        try
-                        {
+                        try { 
                             facePosition = new Point(facecount.rect.X, facecount.rect.Y);
                             faceRectangleSize = new Size(facecount.rect.Width,facecount.rect.Height);
                             faceRectangle = new Rectangle(facePosition, faceRectangleSize);
@@ -567,8 +602,10 @@ namespace EMGUCV
                                     imageroi._EqualizeHist();
                                     imageroi = imageroi.Resize(ROIwidth, ROIheight, INTER.CV_INTER_LINEAR);
                                     Image<Gray, byte> plainImage = imageroi.Copy();
+
                                     imageroi.FillConvexPoly(pL, new Gray(128));
                                     imageroi.FillConvexPoly(pR, new Gray(128));
+
                                     //find the most relative face
                                     progressBar1.Value = recogNameResult.Count;
                                     if (recogNameResult.Count == maxImageCount)
@@ -576,7 +613,7 @@ namespace EMGUCV
                                         Console.WriteLine("Processing...");
                                         int max = 0;
                                         string mostFace = "";
-                                        float confident = 0;
+                                        double confident = 0;
                                         double euclidVal = 0;
                                         foreach (string value in recogNameResult.Distinct())
                                         {
@@ -611,8 +648,8 @@ namespace EMGUCV
                                                 euclidVal = falsePositiveCheck(mydb.getComputeResultImage(name), imageroi.Copy());
                                                 if (euclidVal < 9000)
                                                 {
-                                                    confident = ((float)recogResultSum.Count / (float)maxImageCount) * 100;
-                                                    if (confident >= 80)
+                                                    confident = (((double)recogResultSum.Count / (double)maxImageCount) * 100) * (1.00 - (euclidVal - (meanDistance * 130 / 100)) / 4500.00);
+                                                    if (confident >= 75)
                                                     //if (meanDistance <= fishRecog.getRecognizeTreshold)
                                                     {
                                                         learnImage.Save(folderPath + tempPath);
@@ -628,7 +665,7 @@ namespace EMGUCV
                                                         {
                                                             mydb.DeleteOldestImage(userid);
                                                         }
-                                                        eigenRecog.reloadData();
+                                                        //eigenRecog.reloadData();
                                                         //fishRecog.reloadData();
                                                         learningTag = false;
                                                         Console.WriteLine("Learning:" + userid + "  Distance:" + meanDistance);
@@ -663,14 +700,15 @@ namespace EMGUCV
                                             //Console.WriteLine(matchedData[0] +" "+ matchedData[1]);
                                             recogNameResult.Add(matchedData[0]);
                                             recogDistanceResult.Add(Double.Parse(matchedData[1]));
+                                            //File.AppendAllText(@"C:\Users\Xypher\Desktop\test2.csv", matchedData[1]+"\r\n");
                                         }
                                     }
                                 }
                             }
                         }
-                        catch (Exception e)
+                        catch
                         {
-                            Console.Write(e);
+
                         }
                     });
                 }   
@@ -699,6 +737,18 @@ namespace EMGUCV
             }
             euclidD = Math.Sqrt(sum);
             return euclidD;
+        }
+        private void button3_Click_1(object sender, EventArgs e)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            // Begin timing
+            stopwatch.Start();
+            eigenRecog.reloadData();
+            stopwatch.Stop();
+
+            // Write result
+            MessageBox.Show("Time elapsed: " + stopwatch.Elapsed);
+            
         }
         
 

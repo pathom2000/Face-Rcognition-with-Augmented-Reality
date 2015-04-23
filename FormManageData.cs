@@ -26,13 +26,13 @@ namespace EMGUCV
         Image<Gray, byte>[] userImageCollection;
         OpenFileDialog browseImage;
         string userId = "";
-        public FormManageData(Form1 frm1)
+        public FormManageData(Form1 frm1,Classifier_Train cls)
         {
             InitializeComponent();
             db = new DBConn();
             _form1 = frm1;
             FillData();
-            eigenRecog = new Classifier_Train();
+            eigenRecog = cls;
             browseImage = new OpenFileDialog();
         }
         protected override void OnFormClosing(FormClosingEventArgs e)
