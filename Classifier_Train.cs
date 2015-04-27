@@ -185,6 +185,7 @@ namespace EMGUCV
             allname = mydb.getAllImageID();
             string[] allname_st = allname.Select(x => x.ToString()).ToArray();
             trainingImages = mydb.getTrainedImageList();
+            
             //trainingImages = mydb.getRawTrainedImageList();  
                 if (mydb.getImageCount() > 0)
                 {
@@ -193,7 +194,7 @@ namespace EMGUCV
                     {
                         //set round and ...
                         //termCrit = new MCvTermCriteria(mydb.getImageCount(), 0.001);
-                        termCrit = new MCvTermCriteria(100, 0.00000001);
+                        termCrit = new MCvTermCriteria(5000, 0.0001);
                          //Eigen face recognizer
                         recognizer = new EigenObjectRecognizer(trainingImages, allname_st, maxRecognizeTreshold, ref termCrit);
                         

@@ -78,7 +78,7 @@ namespace EMGUCV
         private string logName;
         private string folderPath = "";
         
-        private Size frameSize = new Size(475, 220);
+        private Size frameSize = new Size(475, 250);
         private Point framePoint = new Point(30, 30);
         Image<Gray, Byte> imgAR = new Image<Gray, Byte>(140, 175);
         private string txtAR;
@@ -96,7 +96,8 @@ namespace EMGUCV
         int x1 = 34;
         int x2 = 105;
         int x3 = 139;
-                
+
+        double confident = 0;
         public Form1()
         {
             InitializeComponent();
@@ -394,7 +395,7 @@ namespace EMGUCV
             if (!nameID.Equals("0"))
             {
                 string[] txtSet = txtAR.Split(' ');
-                for (int i = 0; i < txtSet.Length; i++)
+                for (int i = 0; i < txtSet.Length+1; i++)
                 {
 
                     
@@ -430,6 +431,11 @@ namespace EMGUCV
                         case 6:
                             drawFrame.Draw("     Gender: " + txtSet[i], ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
                             label8.Text = "Gender: " + txtSet[i];
+                            tmpY += 30;
+                            break;
+                        case 7:
+                            drawFrame.Draw("  Confident: " + Math.Round(confident, 2), ref font, new Point(framePoint.X + 170, tmpY + 30), new Bgr(Color.LawnGreen));
+                            
                             tmpY += 30;
                             break;
                         default:
@@ -608,12 +614,12 @@ namespace EMGUCV
 
                                     //find the most relative face
                                     progressBar1.Value = recogNameResult.Count;
-                                    if (recogNameResult.Count == maxImageCount)
+                                    if (recogNameResult.Count == maxImageCount && !ARDisplayFlag)
                                     {
                                         Console.WriteLine("Processing...");
                                         int max = 0;
                                         string mostFace = "";
-                                        double confident = 0;
+                                        
                                         double euclidVal = 0;
                                         foreach (string value in recogNameResult.Distinct())
                                         {
@@ -649,7 +655,11 @@ namespace EMGUCV
                                                 if (euclidVal < 9000)
                                                 {
                                                     confident = (((double)recogResultSum.Count / (double)maxImageCount) * 100) * (1.00 - (euclidVal - (meanDistance * 130 / 100)) / 4500.00);
-                                                    if (confident >= 75)
+                                                    if (confident > 100)
+                                                    {
+                                                        confident = 100;
+                                                    }
+                                                    if (confident >= 80)
                                                     //if (meanDistance <= fishRecog.getRecognizeTreshold)
                                                     {
                                                         learnImage.Save(folderPath + tempPath);

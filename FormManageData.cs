@@ -13,6 +13,7 @@ using Emgu.CV;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 
+using System.IO;
 namespace EMGUCV
 {
     public partial class FormManageData : Form
@@ -184,32 +185,29 @@ namespace EMGUCV
         }
         private void button6_Click(object sender, EventArgs e)
         {
-            string folderPath = "";
-            browseImage.Title = "Please select 140*175 pixel Image";
-            DialogResult result = browseImage.ShowDialog();
-            Image<Gray, byte> loadImage;
-            if (result == DialogResult.OK) // Test result.
+            string fileName = textBox1.Text;
+            string[] res;
+            string userid;
+            string txtAR;
+            string[] arSp;
+            Image<Gray, byte> temp;
+            for (int i = 40; i<71; i++)
             {
-                folderPath = browseImage.FileName;
-                Console.WriteLine(folderPath);
-                Image<Gray, byte> receiveImage = new Image<Gray, byte>(folderPath);
-                if (receiveImage.Width <= 640 && receiveImage.Height <= 480)
-                {
-                    loadImage = receiveImage;
-                    
-                    imageBox7.Image = loadImage;
-                    
-                    
-                    //tomorrow
-                    string[] matchedData = imageCheckRecognize(loadImage);
-                    label7.Text = matchedData[0];//result
-                    label5.Text = matchedData[1];//distance
+                temp = new Image<Gray, byte>(@"E:\ImageTestSet2\" + fileName + i + ".jpg");
+                res = imageCheckRecognize(temp);
+                userid = db.getUserIdFromSerrogate(res[0]);
+                txtAR = db.getUserData(userid);
+                arSp = txtAR.Split(' ');
+                if(arSp.Length == 1){
+                    File.AppendAllText(@"E:\ImageTestSet2\testRes.csv", arSp[0] + "," + res[1] + "\r\n");
                 }
                 else
                 {
-                    MessageBox.Show("Please select image that smaller than 640x480 pixel");
+                    File.AppendAllText(@"E:\ImageTestSet2\testRes.csv", arSp[1] + "," + res[1] + "\r\n");
                 }
+                
             }
+           
         }
 
         private void button7_Click(object sender, EventArgs e)
@@ -254,6 +252,8 @@ namespace EMGUCV
             }
             MessageBox.Show("Image trans finish.");
 
-        }  
+        }
+
+         
     }
 }
